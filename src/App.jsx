@@ -2,11 +2,12 @@ import React, { useState, useEffect } from "react";
 import {
   ShoppingCart, ChefHat, Settings, Plus, Trash2, Loader2,
   TrendingDown, Clock, Flame, Ticket, Users, Wallet, History,
-  ChevronDown, ChevronUp, AlertCircle, Utensils, KeyRound
+  ChevronDown, ChevronUp, AlertCircle, Utensils, KeyRound, Check,
+  Sparkles, ClipboardList
 } from "lucide-react";
 
 const SUPERMARKETS = ["Mercadona", "Día", "Eroski", "Carrefour", "Carrefour Express", "Lidl", "Aldi"];
-const EXTRA_ALLERGIES = ["Gluten", "Frutos secos", "Huevo", "Marisco", "Soja"];
+const ALLERGIES = ["Lactosa", "Gluten", "Frutos secos", "Huevo", "Marisco", "Soja"];
 const STYLES = ["Rápida", "Baja en calorías", "Favoritas en familia", "Confort saludable", "Fakeaway", "Buena digestión", "Alta en proteína"];
 const PROTEINS = ["Ternera", "Cerdo", "Pollo", "Pescado"];
 const APPLIANCES = ["Freidora de aire", "Vitrocerámica", "Horno", "Microondas"];
@@ -91,9 +92,12 @@ function Toggle({ items, active, onChange, single = false }) {
         const isActive = single ? active === item : active.includes(item);
         return (
           <button key={item} type="button" onClick={() => toggle(item)}
-            className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
-              isActive ? "bg-[#7A2E1D] text-[#FBF3E7] border-[#7A2E1D]" : "bg-transparent text-[#3A342C] border-[#B9AF9C] hover:border-[#7A2E1D]"
+            className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border font-medium transition-all duration-200 active:scale-95 ${
+              isActive
+                ? "bg-[#7A2E1D] text-[#FBF3E7] border-[#7A2E1D] shadow-md shadow-[#7A2E1D]/20 scale-100"
+                : "bg-white/50 text-[#3A342C] border-[#D8CEB8] hover:border-[#7A2E1D] hover:bg-white hover:-translate-y-0.5"
             }`}>
+            <Check size={13} className={`transition-all duration-200 ${isActive ? "opacity-100 scale-100 w-3.5" : "opacity-0 scale-0 w-0"}`} />
             {item}
           </button>
         );
@@ -105,14 +109,21 @@ function Toggle({ items, active, onChange, single = false }) {
 function Section({ icon: Icon, title, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border border-[#D8CEB8] rounded-xl bg-[#FBF3E7]/60 mb-4 overflow-hidden">
-      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3 text-left">
-        <span className="flex items-center gap-2 font-semibold text-[#3A342C] tracking-wide">
-          <Icon size={18} className="text-[#7A2E1D]" /> {title}
+    <div className="border border-[#D8CEB8] rounded-xl bg-[#FBF3E7]/70 mb-4 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#7A2E1D]/[0.04] transition-colors">
+        <span className="flex items-center gap-2.5 font-semibold text-[#3A342C] tracking-wide">
+          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-[#7A2E1D]/10">
+            <Icon size={16} className="text-[#7A2E1D]" />
+          </span>
+          {title}
         </span>
-        {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+        <ChevronDown size={18} className={`text-[#9A927E] transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
       </button>
-      {open && <div className="px-4 pb-4">{children}</div>}
+      <div className={`grid transition-all duration-300 ease-in-out ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+        <div className="overflow-hidden">
+          <div className="px-4 pb-4">{children}</div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -186,29 +197,42 @@ export default function App() {
     }
   };
 
+  const TABS = [
+    { id: "prefs", label: "Preferencias", icon: Settings },
+    { id: "plan", label: "Plan semanal", icon: ChefHat },
+    { id: "history", label: "Historial", icon: History },
+  ];
+  const tabIndex = Math.max(0, TABS.findIndex((t) => t.id === tab));
+
   return (
     <div className="min-h-screen bg-[#F1E9D8] text-[#3A342C]">
-      <header className="sticky top-0 z-10 bg-[#F1E9D8]/95 backdrop-blur border-b border-[#D8CEB8] px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Ticket className="text-[#7A2E1D]" size={22} />
-          <span className="font-bold" style={{ fontFamily: "Georgia, serif" }}>NutriCesta</span>
+      <header className="sticky top-0 z-20 bg-gradient-to-r from-[#7A2E1D] to-[#9A4028] text-[#FBF3E7] px-4 py-4 flex items-center justify-between shadow-lg shadow-[#7A2E1D]/10">
+        <div className="flex items-center gap-2.5">
+          <span className="inline-flex animate-float">
+            <Ticket className="drop-shadow" size={24} />
+          </span>
+          <div>
+            <span className="font-display font-bold text-xl tracking-wide leading-none block">NutriCesta</span>
+            <span className="text-[10px] uppercase tracking-[0.2em] text-[#FBF3E7]/70">Compra lista, presupuesto a salvo</span>
+          </div>
         </div>
+        <Sparkles size={18} className="text-[#FBF3E7]/60" />
       </header>
 
-      <nav className="flex border-b border-[#D8CEB8] bg-[#FBF3E7]">
-        {[
-          { id: "prefs", label: "Preferencias", icon: Settings },
-          { id: "plan", label: "Plan semanal", icon: ChefHat },
-          { id: "history", label: "Historial", icon: History },
-        ].map((t) => (
+      <nav className="relative flex border-b border-[#D8CEB8] bg-[#FBF3E7] sticky top-[60px] z-10 shadow-sm">
+        <div
+          className="absolute bottom-0 h-[3px] bg-[#7A2E1D] rounded-full transition-all duration-300 ease-out"
+          style={{ width: `${100 / TABS.length}%`, left: `${(100 / TABS.length) * tabIndex}%` }}
+        />
+        {TABS.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex-1 flex flex-col items-center gap-1 py-2 text-xs font-medium ${tab === t.id ? "text-[#7A2E1D] border-b-2 border-[#7A2E1D]" : "text-[#9A927E]"}`}>
-            <t.icon size={17} /> {t.label}
+            className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors duration-200 ${tab === t.id ? "text-[#7A2E1D]" : "text-[#9A927E] hover:text-[#7A2E1D]/70"}`}>
+            <t.icon size={17} className={`transition-transform duration-200 ${tab === t.id ? "scale-110" : ""}`} /> {t.label}
           </button>
         ))}
       </nav>
 
-      <main className="p-4 max-w-lg mx-auto pb-24">
+      <main key={tab} className="animate-fade-in p-4 max-w-lg mx-auto pb-24">
         {tab === "prefs" && (
           <>
             <Section icon={KeyRound} title="API key de Anthropic" defaultOpen={!apiKey}>
@@ -216,22 +240,22 @@ export default function App() {
                 Solo para pruebas locales. Consíguela en console.anthropic.com/settings/keys. No la compartas, no la subas a ningún repositorio público.
               </p>
               <input type="password" value={apiKey} onChange={(e) => saveApiKey(e.target.value)} placeholder="sk-ant-..."
-                className="w-full px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60 text-sm" />
+                className="w-full px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A2E1D]/30 focus:border-[#7A2E1D] transition-all" />
             </Section>
 
             <Section icon={Wallet} title="Presupuesto y personas">
               <div className="flex gap-2 mb-3">
                 <input type="number" placeholder="Importe €" value={prefs.budgetAmount}
                   onChange={(e) => setPrefs({ ...prefs, budgetAmount: e.target.value })}
-                  className="flex-1 px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60" />
+                  className="flex-1 px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60 focus:outline-none focus:ring-2 focus:ring-[#7A2E1D]/30 focus:border-[#7A2E1D] transition-all" />
                 <select value={prefs.budgetPeriod} onChange={(e) => setPrefs({ ...prefs, budgetPeriod: e.target.value })}
-                  className="px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60">
+                  className="px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60 focus:outline-none focus:ring-2 focus:ring-[#7A2E1D]/30 focus:border-[#7A2E1D] transition-all">
                   <option>Semanal</option><option>Mensual</option>
                 </select>
               </div>
               <label className="text-sm text-[#6B6252] flex items-center gap-2 mb-1"><Users size={14} /> Personas</label>
               <input type="number" min={1} value={prefs.people} onChange={(e) => setPrefs({ ...prefs, people: e.target.value })}
-                className="w-24 px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60" />
+                className="w-24 px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60 focus:outline-none focus:ring-2 focus:ring-[#7A2E1D]/30 focus:border-[#7A2E1D] transition-all" />
             </Section>
 
             <Section icon={ShoppingCart} title="Supermercados">
@@ -239,24 +263,24 @@ export default function App() {
             </Section>
 
             <Section icon={AlertCircle} title="Intolerancias y alergias">
-              <p className="text-xs text-[#6B6252] mb-2">Lactosa siempre excluida por defecto. Marca si hay alguna más.</p>
-              <Toggle items={EXTRA_ALLERGIES} active={prefs.allergies.filter((a) => a !== "Lactosa")}
-                onChange={(v) => setPrefs({ ...prefs, allergies: ["Lactosa", ...v] })} />
+              <p className="text-xs text-[#6B6252] mb-2">Marca todas las que apliquen. La lactosa viene preseleccionada.</p>
+              <Toggle items={ALLERGIES} active={prefs.allergies}
+                onChange={(v) => setPrefs({ ...prefs, allergies: v })} />
               <input value={prefs.extraAllergyNote} onChange={(e) => setPrefs({ ...prefs, extraAllergyNote: e.target.value })}
-                placeholder="Otra (especificar)" className="mt-2 w-full px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60 text-sm" />
+                placeholder="Otra (especificar)" className="mt-2 w-full px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A2E1D]/30 transition-shadow" />
             </Section>
 
             <Section icon={Clock} title="Días que cocino">
               {prefs.days.map((d) => (
                 <div key={d.id} className="flex gap-2 items-center mb-2">
-                  <select value={d.day} onChange={(e) => updateDay(d.id, "day", e.target.value)} className="px-2 py-1.5 rounded-lg border border-[#D8CEB8] bg-white/60 text-sm">
+                  <select value={d.day} onChange={(e) => updateDay(d.id, "day", e.target.value)} className="px-2 py-1.5 rounded-lg border border-[#D8CEB8] bg-white/60 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A2E1D]/30 focus:border-[#7A2E1D] transition-all">
                     {DAY_NAMES.map((n) => <option key={n}>{n}</option>)}
                   </select>
-                  <select value={d.time} onChange={(e) => updateDay(d.id, "time", e.target.value)} className="px-2 py-1.5 rounded-lg border border-[#D8CEB8] bg-white/60 text-sm">
+                  <select value={d.time} onChange={(e) => updateDay(d.id, "time", e.target.value)} className="px-2 py-1.5 rounded-lg border border-[#D8CEB8] bg-white/60 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A2E1D]/30 focus:border-[#7A2E1D] transition-all">
                     {TIME_OPTIONS.map((n) => <option key={n}>{n}</option>)}
                   </select>
                   <input type="number" min={1} max={4} value={d.meals} onChange={(e) => updateDay(d.id, "meals", e.target.value)}
-                    className="w-14 px-2 py-1.5 rounded-lg border border-[#D8CEB8] bg-white/60 text-sm" title="Nº comidas" />
+                    className="w-14 px-2 py-1.5 rounded-lg border border-[#D8CEB8] bg-white/60 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A2E1D]/30 focus:border-[#7A2E1D] transition-all" title="Nº comidas" />
                   <button onClick={() => removeDay(d.id)} className="text-[#9A5040]"><Trash2 size={16} /></button>
                 </div>
               ))}
@@ -281,14 +305,14 @@ export default function App() {
                 <div className="space-y-2">
                   <Toggle items={Object.keys(GOAL_ADJUST)} active={prefs.goal} onChange={(v) => setPrefs({ ...prefs, goal: v })} single />
                   <div className="grid grid-cols-2 gap-2 mt-2">
-                    <input type="number" placeholder="Peso (kg)" value={prefs.weight} onChange={(e) => setPrefs({ ...prefs, weight: e.target.value })} className="px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60" />
-                    <input type="number" placeholder="Altura (cm)" value={prefs.height} onChange={(e) => setPrefs({ ...prefs, height: e.target.value })} className="px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60" />
-                    <input type="number" placeholder="Edad" value={prefs.age} onChange={(e) => setPrefs({ ...prefs, age: e.target.value })} className="px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60" />
-                    <select value={prefs.sex} onChange={(e) => setPrefs({ ...prefs, sex: e.target.value })} className="px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60">
+                    <input type="number" placeholder="Peso (kg)" value={prefs.weight} onChange={(e) => setPrefs({ ...prefs, weight: e.target.value })} className="px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60 focus:outline-none focus:ring-2 focus:ring-[#7A2E1D]/30 focus:border-[#7A2E1D] transition-all" />
+                    <input type="number" placeholder="Altura (cm)" value={prefs.height} onChange={(e) => setPrefs({ ...prefs, height: e.target.value })} className="px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60 focus:outline-none focus:ring-2 focus:ring-[#7A2E1D]/30 focus:border-[#7A2E1D] transition-all" />
+                    <input type="number" placeholder="Edad" value={prefs.age} onChange={(e) => setPrefs({ ...prefs, age: e.target.value })} className="px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60 focus:outline-none focus:ring-2 focus:ring-[#7A2E1D]/30 focus:border-[#7A2E1D] transition-all" />
+                    <select value={prefs.sex} onChange={(e) => setPrefs({ ...prefs, sex: e.target.value })} className="px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60 focus:outline-none focus:ring-2 focus:ring-[#7A2E1D]/30 focus:border-[#7A2E1D] transition-all">
                       <option>Mujer</option><option>Hombre</option>
                     </select>
                   </div>
-                  <select value={prefs.activity} onChange={(e) => setPrefs({ ...prefs, activity: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60">
+                  <select value={prefs.activity} onChange={(e) => setPrefs({ ...prefs, activity: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60 focus:outline-none focus:ring-2 focus:ring-[#7A2E1D]/30 focus:border-[#7A2E1D] transition-all">
                     {Object.keys(ACTIVITY_FACTORS).map((a) => <option key={a}>{a}</option>)}
                   </select>
                   {macros && (
@@ -302,7 +326,7 @@ export default function App() {
             </Section>
 
             <button onClick={generatePlan} disabled={planLoading || !prefs.budgetAmount || prefs.days.length === 0 || !apiKey}
-              className="w-full mt-2 py-3 rounded-xl bg-[#7A2E1D] text-[#FBF3E7] font-semibold flex items-center justify-center gap-2 disabled:opacity-40">
+              className="w-full mt-2 py-3.5 rounded-xl bg-gradient-to-r from-[#7A2E1D] to-[#9A4028] text-[#FBF3E7] font-semibold flex items-center justify-center gap-2 shadow-lg shadow-[#7A2E1D]/25 transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:pointer-events-none disabled:shadow-none">
               {planLoading ? <Loader2 size={18} className="animate-spin" /> : <ChefHat size={18} />}
               {planLoading ? "Generando (buscando precios reales)…" : "Generar plan semanal"}
             </button>
@@ -316,23 +340,38 @@ export default function App() {
 
         {tab === "plan" && (
           <>
-            {!plan && <p className="text-sm text-[#6B6252]">Aún no has generado un plan. Ve a "Preferencias" y pulsa "Generar plan semanal".</p>}
+            {!plan && (
+              <div className="flex flex-col items-center text-center gap-3 py-16 px-4 rounded-2xl border-2 border-dashed border-[#D8CEB8] bg-[#FBF3E7]/40">
+                <span className="flex items-center justify-center w-16 h-16 rounded-full bg-[#7A2E1D]/10 animate-float">
+                  <ChefHat size={28} className="text-[#7A2E1D]" />
+                </span>
+                <p className="text-sm text-[#6B6252] max-w-[220px]">Aún no has generado un plan. Ve a "Preferencias" y pulsa "Generar plan semanal".</p>
+              </div>
+            )}
             {plan && (
               <>
-                <div className="p-4 rounded-xl bg-[#FBF3E7] border border-[#D8CEB8] mb-4">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-[#FBF3E7] to-[#F1E9D8] border border-[#D8CEB8] mb-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-1 text-[#7A2E1D]">
+                    <ClipboardList size={16} />
+                    <span className="text-xs font-semibold uppercase tracking-wider">Resumen</span>
+                  </div>
                   <p className="text-sm">Presupuesto: <b>{plan.resumen?.presupuesto_disponible} €</b> — Estimado: <b>{plan.resumen?.estimado_gastado} €</b></p>
                   {plan.resumen?.ahorro > 0 && (
-                    <p className="text-sm text-[#3E6B4A] flex items-center gap-1 mt-1"><TrendingDown size={14} /> Ahorro estimado: {plan.resumen.ahorro} €</p>
+                    <p className="text-sm text-[#3E6B4A] flex items-center gap-1 mt-1 font-medium"><TrendingDown size={14} /> Ahorro estimado: {plan.resumen.ahorro} €</p>
                   )}
                   {plan.aviso_ahorro && <p className="text-xs text-[#6B6252] mt-1">{plan.aviso_ahorro}</p>}
                 </div>
 
-                <h3 className="font-semibold mb-2">Menú de la semana</h3>
+                <h3 className="font-display font-semibold text-lg mb-2">Menú de la semana</h3>
                 {(plan.menu || []).map((d) => (
-                  <div key={d.dia} className="mb-2 border border-[#D8CEB8] rounded-lg bg-white/50">
-                    <button onClick={() => loadRecipe(d.dia)} className="w-full flex items-center justify-between px-4 py-2 text-left">
+                  <div key={d.dia} className="mb-2 border border-[#D8CEB8] rounded-lg bg-white/50 overflow-hidden shadow-sm hover:shadow-md hover:border-[#7A2E1D]/40 transition-all duration-200">
+                    <button onClick={() => loadRecipe(d.dia)} className="w-full flex items-center justify-between px-4 py-2.5 text-left group">
                       <span className="font-medium">{d.dia}</span>
-                      <span className="text-xs text-[#7A2E1D]">{recipes[d.dia] ? "Ver receta ↓" : recipeLoading === d.dia ? "Cargando…" : "Ver receta"}</span>
+                      <span className="text-xs text-[#7A2E1D] font-medium flex items-center gap-1">
+                        {recipes[d.dia] ? "Ver receta" : recipeLoading === d.dia ? "Cargando…" : "Ver receta"}
+                        {!recipes[d.dia] && recipeLoading !== d.dia && <ChevronDown size={13} className="transition-transform group-hover:translate-y-0.5" />}
+                        {recipes[d.dia] && <ChevronUp size={13} />}
+                      </span>
                     </button>
                     <p className="px-4 pb-2 text-sm text-[#6B6252]">{(d.comidas || []).join(" · ")}</p>
                     {recipeLoading === d.dia && <div className="px-4 pb-3"><Loader2 size={16} className="animate-spin text-[#7A2E1D]" /></div>}
@@ -356,10 +395,10 @@ export default function App() {
                   </div>
                 ))}
 
-                <h3 className="font-semibold mt-5 mb-2">Lista de la compra</h3>
+                <h3 className="font-display font-semibold text-lg mt-5 mb-2">Lista de la compra</h3>
                 {(plan.lista_compra || []).map((s) => (
-                  <div key={s.supermercado} className="mb-4 rounded-lg bg-white/60 border border-[#D8CEB8] p-3 font-mono text-xs">
-                    <p className="font-bold text-sm mb-1 font-sans">{s.supermercado}</p>
+                  <div key={s.supermercado} className="mb-4 rounded-lg bg-white/60 border border-[#D8CEB8] p-3 font-receipt text-xs shadow-sm relative before:content-[''] before:absolute before:-top-1 before:left-0 before:right-0 before:h-1 before:bg-[repeating-linear-gradient(45deg,transparent,transparent_4px,#D8CEB8_4px,#D8CEB8_8px)]">
+                    <p className="font-bold text-sm mb-1 font-sans flex items-center gap-1.5"><ShoppingCart size={13} className="text-[#7A2E1D]" /> {s.supermercado}</p>
                     {(s.items || []).map((it, i) => (
                       <div key={i} className="flex justify-between border-b border-dotted border-[#D8CEB8] py-0.5">
                         <span>{it.producto} <span className="text-[#9A927E]">×{it.cantidad}</span></span>
@@ -378,11 +417,18 @@ export default function App() {
 
         {tab === "history" && (
           <>
-            {history.length === 0 && <p className="text-sm text-[#6B6252]">Todavía no hay planes guardados.</p>}
+            {history.length === 0 && (
+              <div className="flex flex-col items-center text-center gap-3 py-16 px-4 rounded-2xl border-2 border-dashed border-[#D8CEB8] bg-[#FBF3E7]/40">
+                <span className="flex items-center justify-center w-16 h-16 rounded-full bg-[#7A2E1D]/10 animate-float">
+                  <History size={28} className="text-[#7A2E1D]" />
+                </span>
+                <p className="text-sm text-[#6B6252] max-w-[220px]">Todavía no hay planes guardados. Cuando generes uno, aparecerá aquí.</p>
+              </div>
+            )}
             {history.map((h) => (
-              <div key={h.id} className="mb-2 p-3 rounded-lg bg-[#FBF3E7] border border-[#D8CEB8] flex justify-between text-sm">
+              <div key={h.id} className="mb-2 p-3 rounded-lg bg-[#FBF3E7] border border-[#D8CEB8] flex justify-between text-sm shadow-sm hover:shadow-md hover:border-[#7A2E1D]/40 transition-all duration-200">
                 <span>{h.date}</span>
-                <span>{h.gastado != null ? `${h.gastado} €` : "—"} {h.ahorro > 0 && <span className="text-[#3E6B4A]">(ahorro {h.ahorro} €)</span>}</span>
+                <span>{h.gastado != null ? `${h.gastado} €` : "—"} {h.ahorro > 0 && <span className="text-[#3E6B4A] font-medium">(ahorro {h.ahorro} €)</span>}</span>
               </div>
             ))}
           </>

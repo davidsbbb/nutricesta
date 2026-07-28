@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import {
-  ShoppingCart, ChefHat, Settings, Plus, Trash2, Loader2,
+  ShoppingCart, ChefHat, Settings, Plus, Trash2,
   TrendingDown, Clock, Flame, Ticket, Users, Wallet, History,
-  ChevronDown, ChevronUp, AlertCircle, Utensils, KeyRound, Check,
+  ChevronDown, ChevronUp, AlertCircle, Utensils, Check,
   Sparkles, ClipboardList
 } from "lucide-react";
+import { generatePlan as buildPlan } from "./lib/planGenerator.js";
 
 const SUPERMARKETS = ["Mercadona", "Día", "Eroski", "Carrefour", "Carrefour Express", "Lidl", "Aldi"];
 const ALLERGIES = ["Lactosa", "Gluten", "Frutos secos", "Huevo", "Marisco", "Soja"];
@@ -27,41 +28,6 @@ const emptyPrefs = () => ({
   days: [], style: "Favoritas en familia", proteins: ["Pollo"], appliances: ["Vitrocerámica", "Horno"],
   nutriEnabled: false, goal: "Mantenimiento", weight: "", height: "", age: "", sex: "Mujer", activity: "Moderado"
 });
-
-function getApiKey() {
-  return localStorage.getItem("nutricesta_api_key") || import.meta.env.VITE_ANTHROPIC_API_KEY || "";
-}
-
-async function callClaude(system, userPrompt, useSearch = true) {
-  const apiKey = getApiKey();
-  if (!apiKey) throw new Error("Falta la API key. Añádela arriba en Ajustes.");
-  const body = {
-    model: "claude-sonnet-4-6",
-    max_tokens: 1500,
-    system,
-    messages: [{ role: "user", content: userPrompt }],
-  };
-  if (useSearch) body.tools = [{ type: "web_search_20250305", name: "web_search" }];
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message || "Error de la API");
-  const textBlocks = (data.content || []).filter((b) => b.type === "text").map((b) => b.text);
-  const raw = textBlocks[textBlocks.length - 1] || "";
-  const clean = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
-  const firstBrace = clean.indexOf("{");
-  const lastBrace = clean.lastIndexOf("}");
-  if (firstBrace === -1 || lastBrace === -1) throw new Error("Respuesta no interpretable");
-  return JSON.parse(clean.slice(firstBrace, lastBrace + 1));
-}
 
 function computeMacros(prefs) {
   const w = parseFloat(prefs.weight), h = parseFloat(prefs.height), a = parseFloat(prefs.age);
@@ -129,21 +95,16 @@ function Section({ icon: Icon, title, children, defaultOpen = true }) {
 }
 
 export default function App() {
-  const [apiKey, setApiKey] = useState(getApiKey());
   const [prefs, setPrefs] = useState(() => LS.get("nutricesta_prefs", emptyPrefs()));
   const [tab, setTab] = useState("prefs");
   const [plan, setPlan] = useState(() => LS.get("nutricesta_plan", null));
-  const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState("");
   const [recipes, setRecipes] = useState({});
-  const [recipeLoading, setRecipeLoading] = useState(null);
   const [history, setHistory] = useState(() => LS.get("nutricesta_history", []));
 
   useEffect(() => { LS.set("nutricesta_prefs", prefs); }, [prefs]);
   useEffect(() => { LS.set("nutricesta_plan", plan); }, [plan]);
   useEffect(() => { LS.set("nutricesta_history", history); }, [history]);
-
-  const saveApiKey = (v) => { setApiKey(v); localStorage.setItem("nutricesta_api_key", v); };
 
   const addDay = () => setPrefs((p) => ({ ...p, days: [...p.days, { id: Date.now(), day: "Lunes", time: "30 min", meals: 2 }] }));
   const updateDay = (id, field, value) => setPrefs((p) => ({ ...p, days: p.days.map((d) => (d.id === id ? { ...d, [field]: value } : d)) }));
@@ -151,50 +112,23 @@ export default function App() {
 
   const macros = computeMacros(prefs);
 
-  const generatePlan = async () => {
-    setPlanLoading(true); setPlanError(""); setPlan(null); setRecipes({});
+  const generatePlan = () => {
+    setPlanError(""); setRecipes({});
     try {
-      const allAllergies = [...prefs.allergies, prefs.extraAllergyNote].filter(Boolean).join(", ");
-      const system = `Eres un nutricionista experto y planificador de compra doméstico español. Fecha de hoy: ${todayEs()}. Busca precios REALES actuales en supermercados españoles con la herramienta de búsqueda web antes de responder; no inventes precios. Nunca superes el presupuesto indicado, bajo ningún concepto; si puedes ahorrar sin perder variedad, hazlo. Respeta estrictamente las alergias/intolerancias. Tu ÚLTIMO mensaje debe contener ÚNICAMENTE un JSON válido, sin texto adicional ni markdown, con este esquema exacto: {"resumen":{"presupuesto_disponible":number,"estimado_gastado":number,"ahorro":number,"moneda":"EUR"},"menu":[{"dia":"string","comidas":["string"]}],"lista_compra":[{"supermercado":"string","items":[{"producto":"string","cantidad":"string","precio_estimado":number}],"total":number}],"aviso_ahorro":"string"}`;
-      const userPrompt = JSON.stringify({
-        presupuesto: prefs.budgetAmount, periodo: prefs.budgetPeriod, personas: prefs.people,
-        supermercados: prefs.supermarkets, alergias: allAllergies || "Lactosa",
-        dias_cocina: prefs.days.map((d) => ({ dia: d.day, tiempo: d.time, comidas: d.meals })),
-        estilo: prefs.style, proteinas_preferidas: prefs.proteins, electrodomesticos: prefs.appliances,
-        modo_nutricionista: prefs.nutriEnabled, objetivo_calorico: prefs.nutriEnabled && macros ? macros.target : null,
-        macros_objetivo: prefs.nutriEnabled && macros ? { proteina_g: macros.protein_g, grasa_g: macros.fat_g, carbohidratos_g: macros.carbs_g } : null,
-      });
-      const result = await callClaude(system, userPrompt, true);
+      const allAllergies = [...prefs.allergies, ...(prefs.extraAllergyNote ? [prefs.extraAllergyNote] : [])];
+      const result = buildPlan({ ...prefs, allergies: allAllergies });
       setPlan(result);
       const entry = { id: Date.now(), date: todayEs(), gastado: result?.resumen?.estimado_gastado ?? null, ahorro: result?.resumen?.ahorro ?? null };
       setHistory((h) => [entry, ...h].slice(0, 20));
       setTab("plan");
     } catch (e) {
-      setPlanError(e.message || "No se pudo generar el plan. Inténtalo de nuevo.");
-    } finally {
-      setPlanLoading(false);
+      setPlanError(e.message || "No se pudo generar el plan. Revisa tus preferencias e inténtalo de nuevo.");
     }
   };
 
-  const loadRecipe = async (dayName) => {
-    if (recipes[dayName]) return;
-    setRecipeLoading(dayName);
-    try {
-      const allAllergies = [...prefs.allergies, prefs.extraAllergyNote].filter(Boolean).join(", ");
-      const dayInfo = prefs.days.find((d) => d.day === dayName) || { time: "30 min", meals: 2 };
-      const system = `Eres un nutricionista experto. Tu ÚLTIMO mensaje debe contener ÚNICAMENTE un JSON válido, sin texto adicional, con este esquema: {"dia":"string","comidas":[{"nombre":"string","ingredientes":[{"item":"string","cantidad":"string"}],"pasos":["string"],"tiempo_min":number,"electrodomestico":"string","calorias_estimadas":number,"macros":{"proteina_g":number,"carbohidratos_g":number,"grasa_g":number}}]}. Ajusta cantidades para el número de personas indicado, respeta alergias y usa solo los electrodomésticos disponibles.`;
-      const userPrompt = JSON.stringify({
-        dia: dayName, personas: prefs.people, tiempo_disponible: dayInfo.time, numero_comidas: dayInfo.meals,
-        alergias: allAllergies || "Lactosa", estilo: prefs.style, proteinas_preferidas: prefs.proteins,
-        electrodomesticos: prefs.appliances, objetivo_calorico_por_comida: prefs.nutriEnabled && macros ? Math.round(macros.target / (dayInfo.meals || 1)) : null,
-      });
-      const result = await callClaude(system, userPrompt, false);
-      setRecipes((prev) => ({ ...prev, [dayName]: result }));
-    } catch (e) {
-      setRecipes((prev) => ({ ...prev, [dayName]: { error: e.message || "No se pudo generar la receta." } }));
-    } finally {
-      setRecipeLoading(null);
-    }
+  const loadRecipe = (dayId) => {
+    if (recipes[dayId] || !plan?.recipesByDay) return;
+    setRecipes((prev) => ({ ...prev, [dayId]: plan.recipesByDay[dayId] }));
   };
 
   const TABS = [
@@ -205,44 +139,42 @@ export default function App() {
   const tabIndex = Math.max(0, TABS.findIndex((t) => t.id === tab));
 
   return (
-    <div className="min-h-screen bg-[#F1E9D8] text-[#3A342C]">
-      <header className="sticky top-0 z-20 bg-gradient-to-r from-[#7A2E1D] to-[#9A4028] text-[#FBF3E7] px-4 py-4 flex items-center justify-between shadow-lg shadow-[#7A2E1D]/10">
-        <div className="flex items-center gap-2.5">
-          <span className="inline-flex animate-float">
-            <Ticket className="drop-shadow" size={24} />
-          </span>
-          <div>
-            <span className="font-display font-bold text-xl tracking-wide leading-none block">NutriCesta</span>
-            <span className="text-[10px] uppercase tracking-[0.2em] text-[#FBF3E7]/70">Compra lista, presupuesto a salvo</span>
+    <div className="min-h-screen bg-[#F1E9D8] text-[#3A342C]" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <div className="sticky top-0 z-20 shadow-lg shadow-[#7A2E1D]/10" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+        <header className="bg-gradient-to-r from-[#7A2E1D] to-[#9A4028] text-[#FBF3E7] px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          <div className="max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-4xl w-full mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <span className="inline-flex animate-float">
+                <Ticket className="drop-shadow" size={24} />
+              </span>
+              <div>
+                <span className="font-display font-bold text-xl tracking-wide leading-none block">NutriCesta</span>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-[#FBF3E7]/70">Compra lista, presupuesto a salvo</span>
+              </div>
+            </div>
+            <Sparkles size={18} className="text-[#FBF3E7]/60" />
           </div>
-        </div>
-        <Sparkles size={18} className="text-[#FBF3E7]/60" />
-      </header>
+        </header>
 
-      <nav className="relative flex border-b border-[#D8CEB8] bg-[#FBF3E7] sticky top-[60px] z-10 shadow-sm">
-        <div
-          className="absolute bottom-0 h-[3px] bg-[#7A2E1D] rounded-full transition-all duration-300 ease-out"
-          style={{ width: `${100 / TABS.length}%`, left: `${(100 / TABS.length) * tabIndex}%` }}
-        />
-        {TABS.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors duration-200 ${tab === t.id ? "text-[#7A2E1D]" : "text-[#9A927E] hover:text-[#7A2E1D]/70"}`}>
-            <t.icon size={17} className={`transition-transform duration-200 ${tab === t.id ? "scale-110" : ""}`} /> {t.label}
-          </button>
-        ))}
-      </nav>
+        <nav className="relative flex border-b border-[#D8CEB8] bg-[#FBF3E7] shadow-sm">
+          <div className="max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-4xl w-full mx-auto relative flex">
+            <div
+              className="absolute bottom-0 h-[3px] bg-[#7A2E1D] rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${100 / TABS.length}%`, left: `${(100 / TABS.length) * tabIndex}%` }}
+            />
+            {TABS.map((t) => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors duration-200 ${tab === t.id ? "text-[#7A2E1D]" : "text-[#9A927E] hover:text-[#7A2E1D]/70"}`}>
+                <t.icon size={17} className={`transition-transform duration-200 ${tab === t.id ? "scale-110" : ""}`} /> {t.label}
+              </button>
+            ))}
+          </div>
+        </nav>
+      </div>
 
-      <main key={tab} className="animate-fade-in p-4 max-w-lg mx-auto pb-24">
+      <main key={tab} className="animate-fade-in p-4 sm:px-6 lg:px-8 max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-auto pb-24">
         {tab === "prefs" && (
           <>
-            <Section icon={KeyRound} title="API key de Anthropic" defaultOpen={!apiKey}>
-              <p className="text-xs text-[#6B6252] mb-2">
-                Solo para pruebas locales. Consíguela en console.anthropic.com/settings/keys. No la compartas, no la subas a ningún repositorio público.
-              </p>
-              <input type="password" value={apiKey} onChange={(e) => saveApiKey(e.target.value)} placeholder="sk-ant-..."
-                className="w-full px-3 py-2 rounded-lg border border-[#D8CEB8] bg-white/60 text-sm focus:outline-none focus:ring-2 focus:ring-[#7A2E1D]/30 focus:border-[#7A2E1D] transition-all" />
-            </Section>
-
             <Section icon={Wallet} title="Presupuesto y personas">
               <div className="flex gap-2 mb-3">
                 <input type="number" placeholder="Importe €" value={prefs.budgetAmount}
@@ -325,15 +257,14 @@ export default function App() {
               )}
             </Section>
 
-            <button onClick={generatePlan} disabled={planLoading || !prefs.budgetAmount || prefs.days.length === 0 || !apiKey}
+            <button onClick={generatePlan} disabled={!prefs.budgetAmount || prefs.days.length === 0}
               className="w-full mt-2 py-3.5 rounded-xl bg-gradient-to-r from-[#7A2E1D] to-[#9A4028] text-[#FBF3E7] font-semibold flex items-center justify-center gap-2 shadow-lg shadow-[#7A2E1D]/25 transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:pointer-events-none disabled:shadow-none">
-              {planLoading ? <Loader2 size={18} className="animate-spin" /> : <ChefHat size={18} />}
-              {planLoading ? "Generando (buscando precios reales)…" : "Generar plan semanal"}
+              <ChefHat size={18} />
+              Generar plan semanal
             </button>
             {(!prefs.budgetAmount || prefs.days.length === 0) && (
               <p className="text-xs text-center text-[#9A5040] mt-2">Indica presupuesto y al menos un día de cocina.</p>
             )}
-            {!apiKey && <p className="text-xs text-center text-[#9A5040] mt-2">Añade tu API key arriba para poder generar el plan.</p>}
             {planError && <p className="text-sm text-[#9A5040] mt-2 flex items-center gap-1"><AlertCircle size={14} /> {planError}</p>}
           </>
         )}
@@ -364,20 +295,19 @@ export default function App() {
 
                 <h3 className="font-display font-semibold text-lg mb-2">Menú de la semana</h3>
                 {(plan.menu || []).map((d) => (
-                  <div key={d.dia} className="mb-2 border border-[#D8CEB8] rounded-lg bg-white/50 overflow-hidden shadow-sm hover:shadow-md hover:border-[#7A2E1D]/40 transition-all duration-200">
-                    <button onClick={() => loadRecipe(d.dia)} className="w-full flex items-center justify-between px-4 py-2.5 text-left group">
+                  <div key={d.id} className="mb-2 border border-[#D8CEB8] rounded-lg bg-white/50 overflow-hidden shadow-sm hover:shadow-md hover:border-[#7A2E1D]/40 transition-all duration-200">
+                    <button onClick={() => loadRecipe(d.id)} className="w-full flex items-center justify-between px-4 py-2.5 text-left group">
                       <span className="font-medium">{d.dia}</span>
                       <span className="text-xs text-[#7A2E1D] font-medium flex items-center gap-1">
-                        {recipes[d.dia] ? "Ver receta" : recipeLoading === d.dia ? "Cargando…" : "Ver receta"}
-                        {!recipes[d.dia] && recipeLoading !== d.dia && <ChevronDown size={13} className="transition-transform group-hover:translate-y-0.5" />}
-                        {recipes[d.dia] && <ChevronUp size={13} />}
+                        Ver receta
+                        {!recipes[d.id] && <ChevronDown size={13} className="transition-transform group-hover:translate-y-0.5" />}
+                        {recipes[d.id] && <ChevronUp size={13} />}
                       </span>
                     </button>
                     <p className="px-4 pb-2 text-sm text-[#6B6252]">{(d.comidas || []).join(" · ")}</p>
-                    {recipeLoading === d.dia && <div className="px-4 pb-3"><Loader2 size={16} className="animate-spin text-[#7A2E1D]" /></div>}
-                    {recipes[d.dia] && !recipes[d.dia].error && (
+                    {recipes[d.id] && !recipes[d.id].error && (
                       <div className="px-4 pb-3 space-y-3">
-                        {(recipes[d.dia].comidas || []).map((c, i) => (
+                        {(recipes[d.id].comidas || []).map((c, i) => (
                           <div key={i} className="text-sm border-t border-dashed border-[#D8CEB8] pt-2">
                             <p className="font-medium">{c.nombre}</p>
                             <p className="text-xs text-[#6B6252] mb-1">{c.tiempo_min} min · {c.electrodomestico} · {c.calorias_estimadas} kcal</p>
@@ -391,7 +321,7 @@ export default function App() {
                         ))}
                       </div>
                     )}
-                    {recipes[d.dia]?.error && <p className="px-4 pb-3 text-xs text-[#9A5040]">{recipes[d.dia].error}</p>}
+                    {recipes[d.id]?.error && <p className="px-4 pb-3 text-xs text-[#9A5040]">{recipes[d.id].error}</p>}
                   </div>
                 ))}
 

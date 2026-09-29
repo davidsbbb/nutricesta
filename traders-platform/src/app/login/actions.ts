@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { isEmailAllowed, serverConfig } from "@/lib/config";
+import { isEmailAllowed, isTestAdmin, serverConfig } from "@/lib/config";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type LoginState =
@@ -19,7 +19,7 @@ const REJECTED =
 /**
  * Crea el usuario (solo si está en la allowlist) con service role, porque el
  * registro público de Supabase está desactivado. Asigna el rol admin a
- * ADMIN_EMAIL.
+ * los emails de ADMIN_EMAILS la primera vez.
  */
 async function ensureAllowedUser(email: string) {
   const admin = createSupabaseAdminClient();
@@ -34,12 +34,13 @@ async function ensureAllowedUser(email: string) {
     if (created.error) throw created.error;
     user = created.data.user;
   }
-  if (email === serverConfig.adminEmail) {
+  if (isTestAdmin(email)) {
+    // Solo la primera vez (rol vacío): después respetamos el modo que elija.
     const { error: roleError } = await admin
       .from("profiles")
       .update({ role: "admin" })
       .eq("id", user.id)
-      .or("role.is.null,role.neq.admin");
+      .is("role", null);
     if (roleError) throw roleError;
   }
 }

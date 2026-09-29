@@ -11,7 +11,7 @@
  *    valor bloquea el arranque: abrir al público exige completar el checklist
  *    del README y retirar esta guarda a propósito en el código.
  *  - ALLOWED_EMAILS: entre 1 y 3 emails válidos. Nunca más de 3.
- *  - ADMIN_EMAIL debe estar dentro de ALLOWED_EMAILS.
+ *  - ADMIN_EMAILS (uno o varios) deben estar dentro de ALLOWED_EMAILS.
  *  - Stripe: solo claves de test (sk_test_ / pk_test_ / rk_test_ / whsec_).
  *    Si aparece cualquier clave live, se bloquea el arranque.
  */
@@ -48,6 +48,15 @@ export function parseEmailList(raw: string | undefined): string[] {
 
 type Env = Record<string, string | undefined>;
 
+/**
+ * Admins de pruebas: ADMIN_EMAILS (lista) o, por compatibilidad, ADMIN_EMAIL.
+ * En este entorno privado pueden además cambiar su propio modo
+ * (admin / trader / suscriptor) para probar todas las vistas.
+ */
+export function adminEmails(env: Env = process.env): string[] {
+  return parseEmailList(env.ADMIN_EMAILS ?? env.ADMIN_EMAIL);
+}
+
 export function collectEnvProblems(env: Env): string[] {
   const problems: string[] = [];
 
@@ -77,11 +86,12 @@ export function collectEnvProblems(env: Env): string[] {
     if (!EMAIL_RE.test(e)) problems.push(`Email no válido en ALLOWED_EMAILS: ${e}`);
   }
 
-  const admin = (env.ADMIN_EMAIL ?? "").trim().toLowerCase();
-  if (!admin) {
-    problems.push("ADMIN_EMAIL no está definido.");
-  } else if (!allowed.includes(admin)) {
-    problems.push("ADMIN_EMAIL debe ser uno de los emails de ALLOWED_EMAILS.");
+  const admins = adminEmails(env);
+  if (admins.length === 0) {
+    problems.push("ADMIN_EMAILS no está definido (uno o varios emails de ALLOWED_EMAILS).");
+  }
+  for (const a of admins) {
+    if (!allowed.includes(a)) problems.push(`ADMIN_EMAILS: ${a} no está en ALLOWED_EMAILS.`);
   }
 
   // --- Stripe: solo modo test ----------------------------------------------

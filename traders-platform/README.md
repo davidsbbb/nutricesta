@@ -84,7 +84,7 @@ npm run dev                 # http://127.0.0.1:3000
 
 **Login**: introduce uno de los emails de `ALLOWED_EMAILS`. En local el
 email no sale a Internet: ábrelo en Mailpit (http://127.0.0.1:54324) y usa
-el enlace o el código de 6 dígitos. El email de `ADMIN_EMAIL` recibe el rol
+el enlace o el código de 6 dígitos. Los emails de `ADMIN_EMAILS` reciben el rol
 admin; los otros eligen trader o suscriptor en el registro, donde deben
 aceptar uno a uno los documentos legales (se guarda fecha, versión y hash).
 
@@ -103,7 +103,7 @@ PGURL=postgres://postgres@127.0.0.1:5432 npm run test:db
 
 Con Supabase local arrancado, `.env.local` con
 `ALLOWED_EMAILS=admin@foco.test,trader@foco.test,sub@foco.test` y
-`ADMIN_EMAIL=admin@foco.test`, y la app en marcha (`npm run build && npm start`):
+`ADMIN_EMAILS=admin@foco.test`, y la app en marcha (`npm run build && npm start`):
 
 ```bash
 npx supabase db reset   # base de datos vacía
@@ -178,7 +178,7 @@ Todo con planes gratuitos.
 3. Variables de entorno (Production y Preview), las mismas de
    `.env.example`:
    `PUBLIC_LAUNCH=false`, `ALLOWED_EMAILS=tu@email,amigo1@email,amigo2@email`,
-   `ADMIN_EMAIL=tu@email`, `NEXT_PUBLIC_SITE_URL=https://<tu-app>.vercel.app`,
+   `ADMIN_EMAILS=tu@email` (puedes poner los 3 para que todos podáis cambiar de modo), `NEXT_PUBLIC_SITE_URL=https://<tu-app>.vercel.app`,
    `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
    `SUPABASE_SERVICE_ROLE_KEY` y (desde la fase 3) las claves **de test** de
    Stripe. Si pones algo mal (una clave live, 4 emails, `PUBLIC_LAUNCH`
@@ -191,7 +191,7 @@ Todo con planes gratuitos.
 
 Cada uno abre la URL en su móvil u ordenador, pone su email, y recibe un
 email con un código de 6 dígitos y un enlace. Primero debe entrar el admin
-(`ADMIN_EMAIL`). En el registro cada uno elige trader o suscriptor y acepta
+(de `ADMIN_EMAILS`). En el registro cada uno elige trader o suscriptor y acepta
 los textos legales. Para quitarle el acceso a alguien: bórralo de
 `ALLOWED_EMAILS` en Vercel y vuelve a desplegar (el acceso se corta en la
 siguiente petición).

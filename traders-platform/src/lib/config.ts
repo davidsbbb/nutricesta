@@ -1,5 +1,5 @@
 import "server-only";
-import { assertSafeEnvironment, parseEmailList } from "@/lib/env-guard";
+import { adminEmails, assertSafeEnvironment, parseEmailList } from "@/lib/env-guard";
 
 assertSafeEnvironment();
 
@@ -12,7 +12,7 @@ function required(name: string): string {
 export const serverConfig = {
   publicLaunch: false as const,
   allowedEmails: parseEmailList(process.env.ALLOWED_EMAILS),
-  adminEmail: (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase(),
+  adminEmails: adminEmails(),
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "http://127.0.0.1:3000",
   supabaseUrl: required("NEXT_PUBLIC_SUPABASE_URL"),
   supabaseAnonKey: required("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
@@ -24,4 +24,10 @@ export const serverConfig = {
 export function isEmailAllowed(email: string | null | undefined): boolean {
   if (!email) return false;
   return serverConfig.allowedEmails.includes(email.trim().toLowerCase());
+}
+
+/** Admin de pruebas: puede cambiar su propio modo para ver todas las vistas. */
+export function isTestAdmin(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return serverConfig.adminEmails.includes(email.trim().toLowerCase());
 }

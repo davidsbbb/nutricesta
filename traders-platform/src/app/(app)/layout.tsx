@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireOnboardedUser, type Role } from "@/lib/auth";
+import { isTestAdmin } from "@/lib/config";
 import { NOT_ADVICE } from "@/legal/documents";
 import { signOut } from "@/app/login/actions";
 import { FocoLogo } from "@/components/brand";
@@ -30,7 +31,8 @@ const NAV: Record<Role, { href: string; label: string }[]> = {
 };
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
-  const { profile } = await requireOnboardedUser();
+  const { profile, user } = await requireOnboardedUser();
+  const canSwitch = isTestAdmin(user.email);
 
   return (
     <div className="flex flex-1 flex-col">
@@ -41,9 +43,17 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </Link>
           <span className="truncate text-sm">
             <strong>{profile.display_name}</strong>{" "}
-            <span className="rounded bg-navy-light px-1.5 py-0.5 text-xs">
-              {profile.role}
-            </span>
+            {canSwitch ? (
+              <Link
+                href="/cuenta#modo"
+                title="Cambiar modo de prueba"
+                className="rounded bg-navy-light px-1.5 py-0.5 text-xs underline decoration-dotted"
+              >
+                {profile.role} ⇄
+              </Link>
+            ) : (
+              <span className="rounded bg-navy-light px-1.5 py-0.5 text-xs">{profile.role}</span>
+            )}
             <form action={signOut} className="ml-3 inline">
               <button className="underline">Salir</button>
             </form>

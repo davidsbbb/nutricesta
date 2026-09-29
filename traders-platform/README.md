@@ -1,4 +1,4 @@
-# Plataforma de traders — MVP privado de pruebas
+# FOCO — plataforma de traders (MVP privado de pruebas)
 
 > **Entorno privado de pruebas. No es un servicio de inversión.**
 > Máximo 3 usuarios invitados, Stripe solo en modo test, sin datos reales.

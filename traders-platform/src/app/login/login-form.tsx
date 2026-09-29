@@ -6,7 +6,7 @@ import { requestLoginCode, verifyLoginCode, type LoginState } from "./actions";
 const input =
   "w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-base text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100";
 const button =
-  "w-full rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900";
+  "w-full rounded-lg bg-brand px-4 py-3 font-semibold text-white disabled:opacity-50";
 
 export function LoginForm({ initialError }: { initialError?: string }) {
   const [emailState, sendCode, sending] = useActionState<LoginState, FormData>(requestLoginCode, {

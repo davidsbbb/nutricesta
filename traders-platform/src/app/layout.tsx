@@ -3,13 +3,14 @@ import "./globals.css";
 
 // Sin indexación en ninguna página. Sin analytics, sin Open Graph, sin sitemap.
 export const metadata: Metadata = {
-  title: "Plataforma privada de pruebas",
+  title: "FOCO · entorno privado de pruebas",
   robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
   referrer: "no-referrer",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
+  themeColor: "#0b2447",
   initialScale: 1,
 };
 

@@ -81,7 +81,7 @@ export function OnboardingForm({
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}
       <button
         disabled={pending}
-        className="w-full rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900"
+        className="w-full rounded-lg bg-brand px-4 py-3 font-semibold text-white disabled:opacity-50"
       >
         {pending ? "Guardando…" : "Aceptar y continuar"}
       </button>

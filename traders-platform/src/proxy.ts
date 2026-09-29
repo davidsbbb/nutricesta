@@ -74,6 +74,6 @@ export const config = {
   matcher: [
     // Todo salvo estáticos de Next y robots.txt (que debe ser legible por
     // los crawlers para que obedezcan el Disallow).
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt).*)",
+    "/((?!_next/static|_next/image|icon.svg|robots.txt).*)",
   ],
 };

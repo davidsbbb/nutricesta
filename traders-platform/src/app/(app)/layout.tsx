@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireOnboardedUser, type Role } from "@/lib/auth";
 import { NOT_ADVICE } from "@/legal/documents";
 import { signOut } from "@/app/login/actions";
+import { FocoLogo } from "@/components/brand";
 
 const NAV: Record<Role, { href: string; label: string }[]> = {
   suscriptor: [
@@ -24,21 +25,28 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="border-b border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-900/80">
+      <header className="bg-navy text-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-4 py-3">
+          <Link href="/" aria-label="FOCO, inicio">
+            <FocoLogo className="text-xl" />
+          </Link>
           <span className="truncate text-sm">
             <strong>{profile.display_name}</strong>{" "}
-            <span className="rounded bg-slate-200 px-1.5 py-0.5 text-xs dark:bg-slate-700">
+            <span className="rounded bg-navy-light px-1.5 py-0.5 text-xs">
               {profile.role}
             </span>
+            <form action={signOut} className="ml-3 inline">
+              <button className="underline">Salir</button>
+            </form>
           </span>
-          <form action={signOut}>
-            <button className="text-sm underline">Salir</button>
-          </form>
         </div>
         <nav className="mx-auto flex max-w-3xl gap-4 overflow-x-auto px-4 pb-2 text-sm">
           {NAV[profile.role].map((item) => (
-            <Link key={item.href} href={item.href} className="whitespace-nowrap hover:underline">
+            <Link
+              key={item.href}
+              href={item.href}
+              className="whitespace-nowrap text-white/80 hover:text-brand"
+            >
               {item.label}
             </Link>
           ))}

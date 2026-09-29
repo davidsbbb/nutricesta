@@ -54,3 +54,9 @@ Pasos para activarlo (solo hace falta hacerlo una vez):
 
 Abre esa URL desde el navegador del móvil — no hace falta ningún ajuste
 adicional.
+
+## Otros proyectos en este repositorio
+
+- [`traders-platform/`](traders-platform/README.md): MVP **privado** de
+  plataforma de traders (Next.js + Supabase + Stripe test). Independiente de
+  NutriCesta y no se despliega en GitHub Pages.

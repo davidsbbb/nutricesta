@@ -53,7 +53,7 @@ allowlist, tope de 3 usuarios en la BD, banner, bloqueo de claves live).
 | Login obligatorio en todas las rutas salvo `/login` (y los endpoints técnicos `/auth/callback`, webhook de Stripe) | `src/proxy.ts` |
 | Allowlist `ALLOWED_EMAILS` (máx. 3) comprobada al pedir acceso **y en cada petición** (quitar un email revoca el acceso) | `src/proxy.ts`, `src/app/login/actions.ts` |
 | Registro público de Supabase desactivado; solo el servidor crea usuarios de la allowlist | `supabase/config.toml` (`enable_signup = false`) |
-| Tope duro de 3 filas en `auth.users` (trigger) | migración `..._core.sql` |
+| Tope duro de 3 filas en `auth.users` y allowlist propia en la BD (`private.allowed_emails`): la BD rechaza cualquier otro email aunque se llame a la API directamente | migraciones `..._core.sql`, `..._allowlist.sql` |
 | `noindex,nofollow` (meta + cabecera `X-Robots-Tag`), `robots.txt` con `Disallow: /`, sin sitemap, sin analytics, sin redes sociales, sin fuentes de terceros | `src/app/layout.tsx`, `next.config.ts`, `public/robots.txt` |
 | Banner fijo en todas las páginas | `src/app/layout.tsx` |
 | Arranque bloqueado con claves live de Stripe (en cualquier variable), `PUBLIC_LAUNCH != false` o allowlist inválida | `src/lib/env-guard.ts` (se ejecuta en `next.config.ts` e `instrumentation.ts`) |
@@ -108,6 +108,82 @@ npm run build
 ```
 
 ---
+
+## Probarla los 3 desde el móvil / ordenador (despliegue privado)
+
+Para que tú y tus dos amigos la uséis desde cualquier sitio hay que
+publicarla en Internet, pero **sigue siendo privada**: sin login no se ve
+nada, solo entran los 3 emails de `ALLOWED_EMAILS`, la base de datos rechaza
+cualquier otro email, no se indexa en buscadores y Stripe va en modo test.
+Todo con planes gratuitos.
+
+### 1. Supabase (base de datos + login) — https://supabase.com
+
+1. Crea un proyecto. Región **UE** (p. ej. Frankfurt o Irlanda, por RGPD).
+   Guarda la contraseña de la base de datos.
+2. Aplica las migraciones desde tu ordenador:
+   ```bash
+   cd traders-platform
+   npx supabase login
+   npx supabase link --project-ref <ref-del-proyecto>
+   npx supabase db push
+   ```
+3. **Authentication → Sign In / Providers**:
+   - Desactiva **"Allow new users to sign up"** (registro cerrado).
+   - Deja activado el proveedor Email (el servidor crea los usuarios ya
+     confirmados, así que "Confirm email" da igual).
+4. **Authentication → URL Configuration**:
+   - Site URL: `https://<tu-app>.vercel.app`
+   - Redirect URLs: `https://<tu-app>.vercel.app/auth/callback`
+5. **Authentication → Emails → Magic Link**: asunto "Tu acceso a FOCO" y
+   pega el contenido de `supabase/templates/magic_link.html` (incluye el
+   código de 6 dígitos y un enlace que funciona aunque lo abras desde la app
+   de correo del móvil).
+6. **Authentication → Emails → SMTP Settings**: el correo integrado de
+   Supabase solo envía a los miembros del equipo del proyecto y ~2 emails por
+   hora, así que configura un SMTP propio. Opciones gratis:
+   - **Resend** (resend.com): host `smtp.resend.com`, puerto 465, usuario
+     `resend`, contraseña = tu API key. Requiere verificar un dominio.
+   - **Gmail**: host `smtp.gmail.com`, puerto 465, tu Gmail y una
+     "contraseña de aplicación" (Cuenta de Google → Seguridad → Verificación
+     en 2 pasos → Contraseñas de aplicación).
+7. **Project Settings → API**: copia la URL, la `anon` key y la
+   `service_role` key (esta última es secreta: solo va en Vercel).
+
+### 2. Vercel (la web) — https://vercel.com
+
+1. "Add New → Project" e importa este repositorio de GitHub.
+2. **Root Directory: `traders-platform`** (importante: la raíz del repo es
+   otra app, NutriCesta).
+3. Variables de entorno (Production y Preview), las mismas de
+   `.env.example`:
+   `PUBLIC_LAUNCH=false`, `ALLOWED_EMAILS=tu@email,amigo1@email,amigo2@email`,
+   `ADMIN_EMAIL=tu@email`, `NEXT_PUBLIC_SITE_URL=https://<tu-app>.vercel.app`,
+   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+   `SUPABASE_SERVICE_ROLE_KEY` y (desde la fase 3) las claves **de test** de
+   Stripe. Si pones algo mal (una clave live, 4 emails, `PUBLIC_LAUNCH`
+   distinto de `false`) el build falla a propósito.
+4. Deploy. Comparte la URL **solo** con tus dos amigos.
+5. Opcional: en Settings → Deployment Protection deja activada la protección
+   de las "Preview deployments" (viene por defecto).
+
+### 3. Primer acceso
+
+Cada uno abre la URL en su móvil u ordenador, pone su email, y recibe un
+email con un código de 6 dígitos y un enlace. Primero debe entrar el admin
+(`ADMIN_EMAIL`). En el registro cada uno elige trader o suscriptor y acepta
+los textos legales. Para quitarle el acceso a alguien: bórralo de
+`ALLOWED_EMAILS` en Vercel y vuelve a desplegar (el acceso se corta en la
+siguiente petición).
+
+### Qué impide que otra persona la vea
+
+- Sin sesión, todas las páginas redirigen a `/login`; la API de la base de
+  datos no devuelve nada al rol anónimo.
+- Emails fuera de `ALLOWED_EMAILS`: rechazados por la app, por el trigger de
+  la base de datos (`private.allowed_emails`) y por el tope de 3 usuarios.
+- `noindex,nofollow` + `X-Robots-Tag` + `robots.txt Disallow: /`: los
+  buscadores no la indexan aunque alguien publique el enlace.
 
 ## Arquitectura (fase 1)
 

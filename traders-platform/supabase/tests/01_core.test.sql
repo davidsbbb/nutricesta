@@ -20,6 +20,18 @@ begin
   end if;
 end $$;
 
+-- Allowlist en BD (el servidor la rellena con server_allow_email)
+set role service_role;
+select public.server_allow_email('admin@test.local');
+select public.server_allow_email('trader@test.local');
+select public.server_allow_email('SUB@test.local');
+select pg_temp.expect_error($$select public.server_allow_email('cuarto@test.local')$$, 'máximo 3 emails');
+reset role;
+select pg_temp.expect_error($$insert into auth.users (email) values ('intruso@test.local')$$, 'no invitado');
+set role authenticated;
+select pg_temp.expect_error($$select public.server_allow_email('intruso@test.local')$$, '42501');
+reset role;
+
 -- Usuarios (como postgres/servidor)
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'admin@test.local'),
@@ -27,6 +39,8 @@ insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000c', 'sub@test.local');
 
 -- 1. Tope de 3 usuarios
+-- (se salta la allowlist insertando directamente para probar el tope)
+insert into private.allowed_emails values ('cuarto@test.local');
 select pg_temp.expect_error($$insert into auth.users (email) values ('cuarto@test.local')$$, 'máximo 3 usuarios');
 
 -- 2. Perfiles creados automáticamente

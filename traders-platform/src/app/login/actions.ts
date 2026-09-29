@@ -26,6 +26,9 @@ async function ensureAllowedUser(email: string) {
   if (error) throw error;
   let user = data.users.find((u) => u.email?.toLowerCase() === email);
   if (!user) {
+    // La BD rechaza crear usuarios cuyo email no esté en su propia allowlist.
+    const allow = await admin.rpc("server_allow_email", { p_email: email });
+    if (allow.error) throw allow.error;
     const created = await admin.auth.admin.createUser({ email, email_confirm: true });
     if (created.error) throw created.error;
     user = created.data.user;

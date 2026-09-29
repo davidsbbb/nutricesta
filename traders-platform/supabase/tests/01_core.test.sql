@@ -1,24 +1,7 @@
 -- Pruebas de la migración núcleo. Cada bloque lanza excepción si falla.
 \set ON_ERROR_STOP on
 
--- Helper: ejecuta SQL como un usuario autenticado concreto.
-create or replace function pg_temp.expect_error(p_sql text, p_like text) returns void
-language plpgsql as $$
-declare
-  v_failed boolean := false;
-begin
-  begin
-    execute p_sql;
-  exception when others then
-    v_failed := true;
-    if sqlerrm not ilike '%' || p_like || '%' and sqlstate <> p_like then
-      raise exception 'Error inesperado para %: [%] %', p_sql, sqlstate, sqlerrm;
-    end if;
-  end;
-  if not v_failed then
-    raise exception 'ESPERABA ERROR (%) y no lo hubo: %', p_like, p_sql;
-  end if;
-end $$;
+\ir _helpers.psql
 
 -- Allowlist en BD (el servidor la rellena con server_allow_email)
 set role service_role;

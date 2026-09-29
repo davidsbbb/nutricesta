@@ -9,7 +9,8 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test:db": "bash scripts/test-db.sh",
-    "test:e2e": "node scripts/e2e.mjs"
+    "test:e2e": "node scripts/e2e.mjs",
+    "build:sql": "bash scripts/build-deploy-sql.sh"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

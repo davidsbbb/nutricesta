@@ -139,7 +139,9 @@ Todo con planes gratuitos.
 
 1. Crea un proyecto. Región **UE** (p. ej. Frankfurt o Irlanda, por RGPD).
    Guarda la contraseña de la base de datos.
-2. Aplica las migraciones desde tu ordenador:
+2. Aplica las migraciones. **Sin terminal**: abre *SQL Editor → New query*,
+   pega el contenido de `supabase/deploy/todo-en-uno.sql` y pulsa *Run*
+   (una sola vez, en el proyecto vacío). **Con terminal**, alternativa:
    ```bash
    cd traders-platform
    npx supabase login

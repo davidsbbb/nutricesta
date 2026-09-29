@@ -117,6 +117,7 @@ select public.admin_review_post((select id from ids where name='prohibida'), fal
 do $$ begin
   assert (select status from public.posts where id = (select id from ids where name='prohibida')) = 'rechazada', 'no rechazada';
 end $$;
+select pg_temp.expect_error($$update public.platform_settings set banned_patterns = array['(sin cerrar']$$, 'no válido');
 update public.platform_settings set banned_terms_mode = 'block';
 select pg_temp.login(:trader);
 select pg_temp.expect_error($$select public.create_post('tesis', 'Sin riesgo', repeat('texto ', 10), 'Ninguno', true, '[{"asset":"AAPL","view":"alcista","own_position":"ninguna"}]')$$, 'expresiones prohibidas');

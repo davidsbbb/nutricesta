@@ -198,6 +198,27 @@ alter table public.platform_settings
 
 grant update (banned_patterns) on public.platform_settings to authenticated;
 
+-- Un patrón inválido rompería el filtro (y con él, todas las publicaciones):
+-- se valida al guardar.
+create or replace function private.validate_banned_patterns()
+returns trigger language plpgsql as $$
+declare
+  p text;
+begin
+  foreach p in array new.banned_patterns loop
+    begin
+      perform regexp_match('', p);
+    exception when others then
+      raise exception 'Patrón no válido: %', p using errcode = 'check_violation';
+    end;
+  end loop;
+  return new;
+end;
+$$;
+
+create trigger platform_settings_patterns before insert or update of banned_patterns on public.platform_settings
+  for each row execute function private.validate_banned_patterns();
+
 -- Normaliza: minúsculas y sin tildes, para que "Garantízado" o "GARANTIZADO" casen.
 create or replace function private.normalize_text(p text)
 returns text language sql immutable

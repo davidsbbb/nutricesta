@@ -8,6 +8,10 @@ assertSafeEnvironment();
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    // Subida de extractos (máx. 4 MB; Vercel limita las peticiones a 4,5 MB).
+    serverActions: { bodySizeLimit: "4.2mb" },
+  },
   async headers() {
     return [
       {

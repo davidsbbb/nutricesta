@@ -99,6 +99,24 @@ PGURL=postgres://postgres@127.0.0.1:5432 npm run test:db
 # con Supabase local: PGURL=postgresql://postgres:postgres@127.0.0.1:54322 (usa una BD aparte)
 ```
 
+### Prueba de extremo a extremo (simula a los 3 usuarios en un móvil)
+
+Con Supabase local arrancado, `.env.local` con
+`ALLOWED_EMAILS=admin@foco.test,trader@foco.test,sub@foco.test` y
+`ADMIN_EMAIL=admin@foco.test`, y la app en marcha (`npm run build && npm start`):
+
+```bash
+npx supabase db reset   # base de datos vacía
+npm run test:e2e        # capturas en e2e-screenshots/
+```
+
+Recorre: rechazo de desconocidos, login con el código del email, registro
+con aceptaciones, perfil y datos fiscales del trader, subida de extracto,
+bloqueo por operación contraria, publicación programada con retraso,
+publicación retenida por palabras prohibidas, suscriptor sin acceso al
+contenido, verificación y revisión del admin, auditoría íntegra, enlace del
+email abierto en otro navegador y que ninguna pantalla desborde a 390 px.
+
 ### Otros comandos
 
 ```bash
@@ -185,6 +203,22 @@ siguiente petición).
 - `noindex,nofollow` + `X-Robots-Tag` + `robots.txt Disallow: /`: los
   buscadores no la indexan aunque alguien publique el enlace.
 
+## Salvaguardas de las publicaciones (fase 2)
+
+Todas se aplican **en la base de datos** (funciones `create_post`,
+`edit_post`…); el navegador solo avisa antes. Nadie puede escribir en
+`posts` directamente.
+
+| Regla | Cómo |
+| --- | --- |
+| Declaración de posiciones propias por activo mencionado | `post_assets`: visión, posición, operación de los últimos 30 días; mínimo 1 activo |
+| Declaración de conflictos de interés y aviso de riesgos | Campos obligatorios; el aviso se muestra en cada publicación |
+| Retraso mínimo (24 h por defecto, configurable) | `publish_at = envío + publish_delay_hours`; antes de esa hora no la ve nadie salvo autor y admin |
+| Bloqueo por operación en sentido contrario | Visión alcista con posición corta o venta reciente (o al revés), o intención declarada de operar en contra → error |
+| Palabras prohibidas y promesas de rentabilidad | Lista + expresiones regulares, sin distinguir mayúsculas ni tildes; modo "revisión" (queda retenida) o "bloqueo" |
+| Ediciones | Se guarda la versión anterior (inmutable), se vuelve a filtrar, queda auditada; activos/posiciones no editables |
+| Visibilidad | Autor y admin; los suscriptores con suscripción activa a partir de la fase 3 |
+
 ## Arquitectura (fase 1)
 
 - **Roles**: `admin`, `trader`, `suscriptor` (`public.profiles.role`). El
@@ -210,10 +244,12 @@ externo (WORM).
 ## Fases
 
 1. ✅ Base: acceso privado, guardas, roles, onboarding legal, auditoría.
-2. Perfiles de trader, verificación de track record, publicaciones con
-   salvaguardas (declaraciones, retraso, operación contraria, palabras
-   prohibidas).
+2. ✅ Perfiles de trader (métricas + aviso de rentabilidades pasadas), datos
+   fiscales DAC7, verificación manual de extractos, publicaciones con
+   salvaguardas (declaración de posiciones y conflictos, aviso de riesgos,
+   retraso mínimo, bloqueo por operación contraria, filtro de palabras
+   prohibidas y promesas de rentabilidad, revisiones inmutables), panel de
+   revisión y ajustes del admin, listado de traders con orden neutro.
 3. Suscripciones con Stripe Connect (test), desistimiento, cancelación,
    paneles de comisiones e ingresos.
-4. Comentarios públicos + reportes, ranking neutro, RGPD (exportar/borrar),
-   campos fiscales DAC7.
+4. Comentarios públicos + reportes, RGPD (exportar/borrar).

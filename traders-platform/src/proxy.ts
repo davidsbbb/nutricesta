@@ -41,18 +41,19 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  // Base fija para redirecciones (misma razón que en /auth/callback).
+  const base = process.env.NEXT_PUBLIC_SITE_URL || request.url;
   response.headers.set("Cache-Control", "private, no-store");
 
   if (isPublic(pathname)) {
     if (user && pathname === "/login") {
-      return NextResponse.redirect(new URL("/", request.url));
+      return NextResponse.redirect(new URL("/", base));
     }
     return response;
   }
 
   if (!user) {
-    const url = new URL("/login", request.url);
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(new URL("/login", base));
   }
 
   // La allowlist se comprueba en CADA petición: quitar un email de
@@ -60,7 +61,7 @@ export async function proxy(request: NextRequest) {
   const allowed = parseEmailList(process.env.ALLOWED_EMAILS);
   if (!user.email || !allowed.includes(user.email.toLowerCase())) {
     await supabase.auth.signOut();
-    const url = new URL("/login", request.url);
+    const url = new URL("/login", base);
     url.searchParams.set("error", "not_allowed");
     const redirect = NextResponse.redirect(url);
     for (const c of response.cookies.getAll()) redirect.cookies.set(c);

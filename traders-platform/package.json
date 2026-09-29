@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test:db": "bash scripts/test-db.sh"
+    "test:db": "bash scripts/test-db.sh",
+    "test:e2e": "node scripts/e2e.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -27,6 +28,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.7",
+    "playwright": "^1.56.1",
     "supabase": "^2.118.0",
     "tailwindcss": "^4",
     "typescript": "^5"

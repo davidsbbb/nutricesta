@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
-import { isEmailAllowed } from "@/lib/config";
+import { isEmailAllowed, serverConfig } from "@/lib/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 // Endpoint técnico del enlace mágico: canjea el código por una sesión.
@@ -18,14 +18,16 @@ export async function GET(request: NextRequest) {
     ok = !(await supabase.auth.verifyOtp({ token_hash: tokenHash, type })).error;
   }
 
-  if (!ok) return NextResponse.redirect(new URL("/login?error=link", request.url));
+  if (!ok) return NextResponse.redirect(new URL("/login?error=link", serverConfig.siteUrl));
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!isEmailAllowed(user?.email)) {
     await supabase.auth.signOut();
-    return NextResponse.redirect(new URL("/login?error=not_allowed", request.url));
+    return NextResponse.redirect(new URL("/login?error=not_allowed", serverConfig.siteUrl));
   }
-  return NextResponse.redirect(new URL("/", request.url));
+  // Base fija (NEXT_PUBLIC_SITE_URL): detrás de proxies request.url puede traer
+  // otro host y la cookie de sesión no viajaría.
+  return NextResponse.redirect(new URL("/", serverConfig.siteUrl));
 }

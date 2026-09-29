@@ -7,15 +7,24 @@ import { FocoLogo } from "@/components/brand";
 const NAV: Record<Role, { href: string; label: string }[]> = {
   suscriptor: [
     { href: "/", label: "Inicio" },
+    { href: "/traders", label: "Traders" },
     { href: "/cuenta", label: "Mi cuenta" },
   ],
   trader: [
     { href: "/", label: "Inicio" },
+    { href: "/trader/publicaciones", label: "Mis publicaciones" },
+    { href: "/trader/perfil", label: "Mi perfil" },
+    { href: "/trader/verificacion", label: "Verificación" },
+    { href: "/traders", label: "Traders" },
     { href: "/cuenta", label: "Mi cuenta" },
   ],
   admin: [
     { href: "/", label: "Inicio" },
+    { href: "/admin/revision", label: "Revisión" },
+    { href: "/admin/verificaciones", label: "Verificaciones" },
+    { href: "/admin/ajustes", label: "Ajustes" },
     { href: "/admin/auditoria", label: "Auditoría" },
+    { href: "/traders", label: "Traders" },
     { href: "/cuenta", label: "Mi cuenta" },
   ],
 };

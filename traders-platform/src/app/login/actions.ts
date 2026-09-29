@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { isEmailAllowed, serverConfig } from "@/lib/config";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
@@ -57,7 +58,12 @@ export async function requestLoginCode(_prev: LoginState, formData: FormData): P
     return { step: "email", error: "No se pudo preparar el acceso. Inténtalo de nuevo." };
   }
 
-  const supabase = await createSupabaseServerClient();
+  // Cliente sin PKCE ni cookies: así el enlace del email (token_hash) no queda
+  // atado al navegador que lo pidió y funciona al abrirlo desde el móvil o la
+  // app de correo. La sesión se crea después, en /auth/callback o con el código.
+  const supabase = createClient(serverConfig.supabaseUrl, serverConfig.supabaseAnonKey, {
+    auth: { flowType: "implicit", persistSession: false, autoRefreshToken: false },
+  });
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {

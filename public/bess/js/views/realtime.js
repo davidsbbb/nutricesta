@@ -1,7 +1,7 @@
 import { store } from "../store.js";
-import { live } from "../live.js";
+import { live, rackValues } from "../live.js";
 import { simulateDay, N } from "../model.js";
-import { xyChart, scatter, ring, legend } from "../charts.js";
+import { xyChart, scatter, ring, legend, showTip, hideTip, tipRow } from "../charts.js";
 import { num, pct, esc, fmtHM, addDays, todayKey, clamp } from "../util.js";
 import { toast } from "../period.js";
 import { C } from "./common.js";
@@ -18,6 +18,13 @@ const ICON = {
   pf: '<path d="M3 12c3-6 6-6 9 0s6 6 9 0"/>',
 };
 const ic = (k) => `<span class="ic"><svg viewBox="0 0 24 24">${ICON[k]}</svg></span>`;
+
+const METRICS = [
+  { k: "soc", label: "SOC", unit: "%", dec: 1, fmt: (v) => num(v, 1) + " %" },
+  { k: "cur", label: "Intensidad", unit: "A", dec: 1, fmt: (v) => num(v, 1) + " A" },
+  { k: "v", label: "Tensión", unit: "V", dec: 1, fmt: (v) => num(v, 1) + " V" },
+  { k: "t", label: "Temperatura", unit: "ºC", dec: 1, fmt: (v) => num(v, 1) + " ºC" },
+];
 
 export function renderRealtime(root) {
   const a = store.asset();
@@ -85,6 +92,7 @@ export function renderRealtime(root) {
           <div class="btn-row">
             <button class="btn small" id="tFire">Probar alarma incendio</button>
             <button class="btn small" id="tIntr">Probar intrusión</button>
+            <button class="btn small" id="tH2">Simular fuga H₂</button>
           </div>
         </div>
       </div>
@@ -95,7 +103,18 @@ export function renderRealtime(root) {
       <div class="card"><div class="card-head"><h2>Diagrama P‑Q</h2><span class="meta">Valores normalizados a potencia nominal</span></div><div id="chPQ"></div>
         ${legend([{ label: "Operación real (hoy)", color: C.s1 }, { label: "Consigna", color: C.s2 }, { label: "Último punto", color: C.neg }])}
         <p class="note">Círculo discontinuo: envolvente nominal |S| = 1 pu.</p></div>
-    </div>`;
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="card-head"><h2>Mapa de calor por rack</h2><span class="meta">Tiempo real · desviación respecto a la media de cada métrica</span></div>
+      <p class="note">El color indica cuánto se aleja cada rack de la media, sobre un umbral fijo por métrica (SOC ±3 pp, intensidad ±10 % nominal, tensión ±5 V, temperatura ±3 ºC), así el ruido a corriente casi nula no se marca como crítico.</p>
+      <div class="table-wrap"><div id="heat" class="heat"></div></div>
+      <div class="heat-scale"><span>Normal</span><i></i><span>Crítico</span></div>
+      <div class="stats" id="imb" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div class="card-head"><h2>Medidores</h2><span class="meta">Climatización y seguridad · tiempo real</span></div>
+      <div class="meters" id="meters"></div>
+    </div></div>`;
 
   const $ = (s) => root.querySelector(s);
   const yKey = addDays(todayKey(), -1);
@@ -157,6 +176,43 @@ export function renderRealtime(root) {
     toast("Prueba: temperatura forzada a 61 ºC.");
   };
   $("#tIntr").onclick = () => live.testAlarm("intrusion");
+  $("#tH2").onclick = () => {
+    const leak = !live.state().h2Leak;
+    live.testAlarm("h2");
+    $("#tH2").textContent = leak ? "Detener fuga H₂" : "Simular fuga H₂";
+    toast(leak ? "Simulando fuga de hidrógeno: observa el medidor." : "Fuga detenida.");
+  };
+
+  // mapa de calor
+  const heatEl = $("#heat");
+  let rackCache = [];
+  heatEl.addEventListener("pointermove", (ev) => {
+    const c = ev.target.closest("[data-r]");
+    if (!c) return hideTip();
+    const m = METRICS[+c.dataset.m];
+    const r = rackCache[+c.dataset.r];
+    if (!r) return;
+    const avg = rackCache.reduce((x, y) => x + y[m.k], 0) / rackCache.length;
+    const d = r[m.k] - avg;
+    showTip(`<div class="tip-head">${esc(r.id)} · ${esc(m.label)}</div>${tipRow("", "Valor", m.fmt(r[m.k]))}${tipRow("", "Media", m.fmt(avg))}${tipRow("", "Desviación", (d >= 0 ? "+" : "") + num(d, m.dec) + " " + m.unit)}`, ev.clientX, ev.clientY);
+  });
+  heatEl.addEventListener("pointerleave", hideTip);
+
+  // medidores: delegación para consignas
+  const metersEl = $("#meters");
+  metersEl.addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-hv]");
+    if (!b) return;
+    const st = live.state();
+    const i = +b.dataset.hv;
+    const h = st.hvac[i];
+    const k = b.dataset.k;
+    lastMeters = 0;
+    live.setHvac(i, { [k]: Math.round((h[k] + +b.dataset.d) * 10) / 10 });
+  });
+  let lastHeat = 0;
+  let lastMeters = 0;
+  const nomI = (a.powerMW * 1e6) / 1180;
 
   let lastHist = -1;
   let lastDraw = 0;
@@ -177,6 +233,7 @@ export function renderRealtime(root) {
       ["Alarma de intrusión", al.intrusion],
       ["Mínimo de SOC", al.minSoc],
       ["Temperatura alta", al.maxTemp],
+      ["Hidrógeno", al.h2],
     ]
       .map(([l, on]) => `<span class="chip ${on ? "on" : ""}"><i></i>${esc(l)}${on ? " · ACTIVA" : ""}</span>`)
       .join("");
@@ -229,6 +286,16 @@ export function renderRealtime(root) {
     $("#spQo").textContent = `${num(st.qsp, dp)} MVAr`;
     spQ.disabled = !st.ppc.q;
 
+    if (Date.now() - lastHeat > 2000) {
+      lastHeat = Date.now();
+      rackCache = rackValues(st, a);
+      drawHeat(rackCache);
+    }
+    if (Date.now() - lastMeters > 2000) {
+      lastMeters = Date.now();
+      drawMeters(st);
+    }
+
     // gráficos: se redibujan cuando hay muestras nuevas
     const now = Date.now();
     if (st.history.length !== lastHist && now - lastDraw > 4000) {
@@ -237,6 +304,51 @@ export function renderRealtime(root) {
       drawCharts(st);
     }
   };
+
+  function drawHeat(racks) {
+    const n = racks.length;
+    const thr = { soc: 3, cur: Math.max(0.1 * (nomI / n), 0.5), v: 5, t: 3 };
+    let html = `<div class="heat-grid" style="grid-template-columns:110px repeat(${n},minmax(54px,1fr))"><div class="hm-h">Métrica</div>${racks.map((r) => `<div class="hm-h">${r.id}</div>`).join("")}`;
+    const imb = [];
+    METRICS.forEach((m, mi) => {
+      const vals = racks.map((r) => r[m.k]);
+      const avg = vals.reduce((x, y) => x + y, 0) / n;
+      imb.push([m, Math.max(...vals) - Math.min(...vals)]);
+      html += `<div class="hm-l"><b>${m.label}</b><span>Ø ${m.fmt(avg)}</span></div>`;
+      racks.forEach((r, ri) => {
+        const sev = Math.min(1, Math.abs(r[m.k] - avg) / thr[m.k]);
+        const bg = sev < 0.5 ? `color-mix(in oklab, var(--hm-warn) ${sev * 200}%, var(--hm-ok))` : `color-mix(in oklab, var(--hm-crit) ${(sev - 0.5) * 200}%, var(--hm-warn))`;
+        const ink = sev > 0.3 && sev < 0.8 ? "#0b0b0b" : "#fff";
+        html += `<div class="hm-c" data-r="${ri}" data-m="${mi}" style="background:${bg};color:${ink}">${num(r[m.k], m.dec)}</div>`;
+      });
+    });
+    heatEl.innerHTML = html + "</div>";
+    $("#imb").innerHTML = imb.map(([m, d]) => `<div class="stat"><span>Dispersión ${m.label.toLowerCase()}</span><b>${num(d, m.dec)} ${m.unit}</b></div>`).join("");
+  }
+
+  function drawMeters(st) {
+    const h2 = st.h2;
+    const h2cls = h2 >= 25 ? "bad" : h2 >= 10 ? "warn" : "ok";
+    metersEl.innerHTML =
+      st.hvac
+        .map(
+          (h, i) => `<div class="meter">
+        <div class="meter-head"><b>❄ ${esc(h.name)}</b><span class="tag">${h.mode === "Heat" ? "Calor" : "Frío"}</span></div>
+        <div class="meter-vals">
+          <div><small>Temperatura</small><b>${num(h.temp, 2)}<em>ºC</em></b>
+            <div class="sp">Consigna: <button class="mini" data-hv="${i}" data-k="spT" data-d="-0.5" aria-label="Bajar consigna">−</button> ${num(h.spT, 1)} ºC <button class="mini" data-hv="${i}" data-k="spT" data-d="0.5" aria-label="Subir consigna">+</button></div></div>
+          <div><small>Humedad</small><b>${num(h.hum, 2)}<em>%HR</em></b>
+            <div class="sp">Consigna: <button class="mini" data-hv="${i}" data-k="spH" data-d="-1" aria-label="Bajar consigna">−</button> ${num(h.spH, 0)} %HR <button class="mini" data-hv="${i}" data-k="spH" data-d="1" aria-label="Subir consigna">+</button></div></div>
+        </div></div>`
+        )
+        .join("") +
+      `<div class="meter ${h2cls}">
+        <div class="meter-head"><b>⚠ Hidrógeno</b><span class="tag">${h2cls === "ok" ? "Normal" : h2cls === "warn" ? "Aviso" : "Crítico"}</span></div>
+        <div class="meter-vals"><div><small>Concentración</small><b>${num(h2, 2)}<em>% LEL</em></b></div></div>
+        <div class="h2bar"><i style="width:${Math.min(100, (h2 / 30) * 100)}%"></i><span style="left:${(10 / 30) * 100}%">10 %</span><span style="left:${(25 / 30) * 100}%">25 %</span></div>
+        <p class="note">Aviso al 10 % LEL (ventilación forzada) · crítico al 25 % LEL.</p>
+      </div>`;
+  }
 
   function drawCharts(st) {
     const B = 5; // minutos por punto

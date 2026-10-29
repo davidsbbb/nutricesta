@@ -12,7 +12,9 @@ ni compilación: HTML + CSS + JavaScript (módulos ES) y gráficos SVG propios.
   (OMIE / mixta / aFRR) sobre el mismo periodo.
 - **Tiempo real**: SOC, flujo de potencia del día con consigna, control
   automático / manual / standby, interruptor, paro de emergencia, PPC (P, Q, V,
-  FP), diagrama P‑Q, alarmas (incendio, intrusión, SOC mínimo, temperatura) y
+  FP), diagrama P‑Q, mapa de calor por rack (SOC, intensidad, tensión,
+  temperatura), medidores de climatización e hidrógeno, alarmas (incendio,
+  intrusión, SOC mínimo, temperatura, H₂) y
   simulación acelerada 60× / 600×.
 - **Alarmas**: registro con reconocimiento y exportación.
 - **Activos y ajustes**: cartera de activos, parámetros técnicos y de mercado,

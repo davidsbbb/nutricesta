@@ -16,6 +16,34 @@ function minutesOf(d) {
   return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
 }
 
+// Racks: sesgos persistentes por rack (envejecimiento, posición en el contenedor)
+export function rackCount(a) {
+  return clamp(Math.round(a.energyMWh / 0.12), 4, 24);
+}
+function makeRacks(a) {
+  const r = rng(Array.from(a.id).reduce((h, c) => h * 31 + c.charCodeAt(0), 7) >>> 0);
+  return Array.from({ length: rackCount(a) }, (_, i) => ({
+    id: "R" + (i + 1),
+    socB: gauss(r) * 0.35 + (r() < 0.08 ? -2.5 : 0),
+    curB: gauss(r) * 0.015,
+    vB: gauss(r) * 0.6,
+    tB: gauss(r) * 0.5 + (i % 6 === 5 ? 0.8 : 0),
+  }));
+}
+
+// Valores instantáneos por rack
+export function rackValues(st, a) {
+  const n = st.racks.length;
+  const vNom = 1180;
+  const vOf = (soc) => vNom * (0.9 + 0.12 * (soc / 100) + 0.02 * Math.tanh((soc - 90) / 4));
+  const iTot = (st.p * 1e6) / vNom; // A totales en DC
+  return st.racks.map((rk) => {
+    const soc = clamp(st.soc + rk.socB, 0, 100);
+    const cur = (iTot / n) * (1 + rk.curB);
+    return { id: rk.id, soc, cur, v: vOf(soc) + rk.vB - cur * 0.02, t: st.temp + rk.tB };
+  });
+}
+
 function init() {
   const a = store.asset();
   const now = new Date();
@@ -57,9 +85,16 @@ function init() {
     exp,
     imp,
     connection: "online",
-    alarms: { fire: false, intrusion: false, minSoc: false, maxTemp: false },
+    alarms: { fire: false, intrusion: false, minSoc: false, maxTemp: false, h2: false },
     lastSample: Math.floor(mins),
     source: store.get().realtime.source,
+    racks: makeRacks(a),
+    hvac: [
+      { name: "Clima 1", temp: 23.1, hum: 56, spT: 22.6, spH: 50, mode: "Heat" },
+      { name: "Clima 2", temp: 23.0, hum: 57, spT: 22.6, spH: 55, mode: "Heat" },
+    ],
+    h2: 1.2 + noise() * 1.2,
+    h2Leak: false,
   };
 }
 
@@ -117,6 +152,19 @@ function tick() {
     st.soc = clamp(st.soc, 0, 100);
     const heat = st.ambient + 3 + (Math.abs(st.p) / a.powerMW) * 9;
     st.temp += (heat - st.temp) * Math.min(1, 0.002 * speed) + gauss(noise) * 0.01;
+  }
+
+  // climatización e hidrógeno
+  for (const h of st.hvac || []) {
+    h.mode = h.temp > h.spT + 0.2 || st.ambient > h.spT ? "Cool" : "Heat";
+    const load = Math.abs(st.p) / a.powerMW;
+    h.temp += (h.spT + 0.3 + load * 0.5 - h.temp) * Math.min(1, 0.01 * speed) + gauss(noise) * 0.02;
+    h.hum += (h.spH + 6 - h.hum) * Math.min(1, 0.005 * speed) + gauss(noise) * 0.05;
+  }
+  if (st.hvac) {
+    const target = st.h2Leak ? 14 : 1.5;
+    st.h2 = clamp(st.h2 + (target - st.h2) * Math.min(1, 0.03 * speed) + gauss(noise) * 0.03, 0, 100);
+    emitAlarm("h2", st.h2 >= 10, `Concentración de hidrógeno alta (${st.h2.toFixed(1)} % LEL): ventilación forzada`);
   }
 
   // alarmas
@@ -198,6 +246,10 @@ export const live = {
     if (st.mode !== "manual") st.mode = "manual";
     tick();
   },
+  setHvac(i, patch) {
+    Object.assign(st.hvac[i], patch);
+    tick();
+  },
   setQ(v) {
     st.qsp = v;
   },
@@ -227,6 +279,7 @@ export const live = {
   },
   testAlarm(type) {
     if (type === "fire") st.temp = 61;
+    if (type === "h2") st.h2Leak = !st.h2Leak;
     if (type === "intrusion") emitAlarm("intrusion", !st.alarms.intrusion, "Alarma de intrusión: puerta de contenedor abierta");
     tick();
   },

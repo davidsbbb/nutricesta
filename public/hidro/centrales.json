@@ -1,36 +1,171 @@
 {
   "actualizado": "2026-10-29",
-  "nota": "Sustituir por los datos reales de las centrales",
+  "nota": "Cifras de EJEMPLO: sustituir por los datos reales de cada central desde la pantalla Centrales y volver a exportar",
   "centrales": [
     {
-      "id": "c1",
-      "name": "Central de embalse",
-      "type": "embalse",
-      "pmax": 20,
-      "pmin": 4,
-      "head": 80,
-      "eta": 88,
-      "qmax": 30,
-      "qeco": 0.5,
-      "vmin": 2,
-      "vmax": 12,
+      "id": "berrocalillo",
+      "name": "Berrocalillo",
+      "cotaMin": 400,
+      "cotaMax": 405,
       "maxStarts": 3,
-      "startCost": 150
+      "groups": [
+        {
+          "id": "G1",
+          "name": "Grupo 1",
+          "pmax": 2,
+          "pmin": 0,
+          "mode": "fijo",
+          "cmh": 4,
+          "requires": null,
+          "startMin": 0
+        }
+      ],
+      "pending": true
     },
     {
-      "id": "c2",
-      "name": "Minicentral fluyente",
-      "type": "fluyente",
-      "pmax": 3,
-      "pmin": 0.6,
-      "head": 25,
-      "eta": 85,
-      "qmax": 15,
-      "qeco": 1,
-      "vmin": 0,
-      "vmax": 0.03,
-      "maxStarts": 2,
-      "startCost": 30
+      "id": "astudillo",
+      "name": "Astudillo",
+      "cotaMin": 400,
+      "cotaMax": 405,
+      "maxStarts": 3,
+      "groups": [
+        {
+          "id": "G1",
+          "name": "Grupo 1",
+          "pmax": 2,
+          "pmin": 0,
+          "mode": "fijo",
+          "cmh": 4,
+          "requires": null,
+          "startMin": 0
+        }
+      ],
+      "pending": true
+    },
+    {
+      "id": "sanlazaro",
+      "name": "San Lázaro",
+      "cotaMin": 400,
+      "cotaMax": 405,
+      "maxStarts": 3,
+      "groups": [
+        {
+          "id": "G1",
+          "name": "Grupo 1",
+          "pmax": 2,
+          "pmin": 0,
+          "mode": "fijo",
+          "cmh": 4,
+          "requires": null,
+          "startMin": 0
+        }
+      ],
+      "pending": true
+    },
+    {
+      "id": "marinejo",
+      "name": "Marinejo",
+      "cotaMin": 400,
+      "cotaMax": 405,
+      "maxStarts": 3,
+      "groups": [
+        {
+          "id": "G1",
+          "name": "Grupo 1",
+          "pmax": 2,
+          "pmin": 0,
+          "mode": "fijo",
+          "cmh": 4,
+          "requires": null,
+          "startMin": 0
+        }
+      ],
+      "pending": true
+    },
+    {
+      "id": "casasdelmonte",
+      "name": "Casas del Monte",
+      "cotaMin": 400,
+      "cotaMax": 405,
+      "maxStarts": 3,
+      "groups": [
+        {
+          "id": "G1",
+          "name": "Grupo 1",
+          "pmax": 2,
+          "pmin": 0,
+          "mode": "fijo",
+          "cmh": 4,
+          "requires": null,
+          "startMin": 0
+        }
+      ],
+      "pending": true
+    },
+    {
+      "id": "chorro",
+      "name": "Chorro del Duque",
+      "cotaMin": 400,
+      "cotaMax": 405,
+      "maxStarts": 3,
+      "groups": [
+        {
+          "id": "G1",
+          "name": "Grupo 1",
+          "pmax": 3,
+          "pmin": 0,
+          "mode": "fijo",
+          "cmh": 5,
+          "requires": null,
+          "startMin": 30
+        },
+        {
+          "id": "G2",
+          "name": "Grupo 2",
+          "pmax": 3,
+          "pmin": 0,
+          "mode": "fijo",
+          "cmh": 5,
+          "requires": "G1",
+          "startMin": 30
+        }
+      ],
+      "pending": true
+    },
+    {
+      "id": "zaburdon",
+      "name": "Zaburdón",
+      "cotaMin": 400,
+      "cotaMax": 405,
+      "maxStarts": 3,
+      "groups": [
+        {
+          "id": "G1",
+          "name": "Grupo 1",
+          "pmax": 2,
+          "pmin": 0,
+          "mode": "fijo",
+          "cmh": 6,
+          "requires": null,
+          "startMin": 0
+        },
+        {
+          "id": "G2",
+          "name": "Grupo 2",
+          "pmax": 2,
+          "pmin": 0,
+          "mode": "fijo",
+          "cmh": 6,
+          "requires": null,
+          "startMin": 0
+        }
+      ],
+      "cascade": {
+        "from": "chorro",
+        "delayMin": 90,
+        "cmhFull": 8
+      },
+      "pending": true
     }
   ]
 }

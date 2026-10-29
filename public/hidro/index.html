@@ -23,6 +23,14 @@
       .row-hl td { background: color-mix(in srgb, var(--brand) 10%, transparent); }
       .toggle { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--ink-2); }
       .plan-list .alarm b { font-size: 14px; }
+      .cell-in { width: 92px; padding: 5px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--ink); text-align: right; font: inherit; font-size: 12.5px; }
+      .cell-in::placeholder { color: var(--muted); }
+      select.cell-in { width: auto; text-align: left; }
+      table.data td { vertical-align: middle; }
+      .drop { display: block; border: 2px dashed var(--axis); border-radius: 12px; padding: 22px; text-align: center; cursor: pointer; background: var(--surface-2); }
+      .drop.over { border-color: var(--brand); background: var(--brand-soft); }
+      .pill.warn { border-color: var(--warning); }
+      .src-badge.excel i, .src-badge.auto i { background: var(--good); }
       textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
     </style>
   </head>
@@ -31,25 +39,26 @@
       <aside class="sidebar">
         <div class="brand">
           <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><path d="M16 3C11 10 7 14.5 7 19a9 9 0 0018 0c0-4.5-4-9-9-16z" fill="currentColor" opacity=".25" stroke="currentColor" stroke-width="2"/><path d="M11 20a5 5 0 005 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          <div><b>Plan Hidráulico</b><span>Previsión D+1</span></div>
+          <div><b>Plan Hidráulico</b><span>Ayuda día a día</span></div>
         </div>
         <label class="asset-pick"><span>Central</span><select id="plantSelect"></select></label>
         <nav>
-          <div class="nav-title">Planificación</div>
-          <a href="#/plan" data-route="plan"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Plan del día</a>
+          <div class="nav-title">Día a día</div>
+          <a href="#/resumen" data-route="resumen"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Resumen</a>
+          <a href="#/central" data-route="central"><svg viewBox="0 0 24 24"><path d="M12 3C8 9 5 12.5 5 16a7 7 0 0014 0c0-3.5-3-7-7-13z"/></svg>Central</a>
+          <a href="#/diario" data-route="diario"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM9 8h6M9 12h6M9 16h4"/></svg>Diario de cotas</a>
           <a href="#/precios" data-route="precios"><svg viewBox="0 0 24 24"><path d="M3 17l5-5 4 4 8-9M15 7h5v5"/></svg>Precios OMIE</a>
-          <a href="#/historial" data-route="historial"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 109-9 9 9 0 00-7 3.3M3 4v4h4M12 7v5l3 2"/></svg>Planes guardados</a>
           <div class="nav-title">Configuración</div>
           <a href="#/centrales" data-route="centrales"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Centrales</a>
         </nav>
-        <div class="side-foot">Herramienta de ayuda a la decisión.<br />No se conecta al SCADA ni a W2M.</div>
+        <div class="side-foot">Herramienta de ayuda a la decisión.<br />No se conecta al SCADA ni a W2M.<br />Los datos se guardan en este ordenador.</div>
       </aside>
       <div class="scrim" id="scrim"></div>
       <main class="main">
         <header class="topbar">
           <button class="icon-btn" id="menuBtn" aria-label="Menú"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
           <div class="pills">
-            <span class="pill" id="pillOmie"><small>OMIE mañana</small><b>…</b></span>
+            <a class="pill" id="pillOmie" href="#/precios" style="text-decoration:none;color:inherit"><small>OMIE mañana</small><b>…</b></a>
             <span class="pill" id="pillAvg"><small>Media mañana</small><b>…</b></span>
           </div>
           <div class="top-actions">

@@ -1,44 +1,49 @@
-// Estado local (centrales, planes guardados, precios manuales) y lectura
-// automática de precios OMIE publicados junto a la web.
+// Estado local (en el navegador de cada usuario): centrales, precios cargados
+// desde el Excel de OMIE, diario de cotas y entradas de cada plan.
 
-import { samplePrices } from "./hydro.js";
+const KEY = "hidro-plan-v2";
 
-const KEY = "hidro-plan-v1";
-
+// Datos de partida: nombres reales, cifras de EJEMPLO a completar en "Centrales".
+const g = (id, name, pmax, cmh, extra = {}) => ({ id, name, pmax, pmin: 0, mode: "fijo", cmh, requires: null, startMin: 0, ...extra });
 export const DEFAULT_PLANTS = [
+  { id: "berrocalillo", name: "Berrocalillo", cotaMin: 400, cotaMax: 405, maxStarts: 3, groups: [g("G1", "Grupo 1", 2, 4)], pending: true },
+  { id: "astudillo", name: "Astudillo", cotaMin: 400, cotaMax: 405, maxStarts: 3, groups: [g("G1", "Grupo 1", 2, 4)], pending: true },
+  { id: "sanlazaro", name: "San Lázaro", cotaMin: 400, cotaMax: 405, maxStarts: 3, groups: [g("G1", "Grupo 1", 2, 4)], pending: true },
+  { id: "marinejo", name: "Marinejo", cotaMin: 400, cotaMax: 405, maxStarts: 3, groups: [g("G1", "Grupo 1", 2, 4)], pending: true },
+  { id: "casasdelmonte", name: "Casas del Monte", cotaMin: 400, cotaMax: 405, maxStarts: 3, groups: [g("G1", "Grupo 1", 2, 4)], pending: true },
   {
-    id: "c1",
-    name: "Central de embalse",
-    type: "embalse",
-    pmax: 20,
-    pmin: 4,
-    head: 80,
-    eta: 88,
-    qmax: 30,
-    qeco: 0.5,
-    vmin: 2,
-    vmax: 12,
+    id: "chorro",
+    name: "Chorro del Duque",
+    cotaMin: 400,
+    cotaMax: 405,
     maxStarts: 3,
-    startCost: 150,
+    groups: [g("G1", "Grupo 1", 3, 5, { startMin: 30 }), g("G2", "Grupo 2", 3, 5, { startMin: 30, requires: "G1" })],
+    pending: true,
   },
   {
-    id: "c2",
-    name: "Minicentral fluyente",
-    type: "fluyente",
-    pmax: 3,
-    pmin: 0.6,
-    head: 25,
-    eta: 85,
-    qmax: 15,
-    qeco: 1,
-    vmin: 0,
-    vmax: 0.03,
-    maxStarts: 2,
-    startCost: 30,
+    id: "zaburdon",
+    name: "Zaburdón",
+    cotaMin: 400,
+    cotaMax: 405,
+    maxStarts: 3,
+    groups: [g("G1", "Grupo 1", 2, 6), g("G2", "Grupo 2", 2, 6)],
+    cascade: { from: "chorro", delayMin: 90, cmhFull: 8 },
+    pending: true,
   },
 ];
 
-const defaults = () => ({ plants: DEFAULT_PLANTS.map((p) => ({ ...p })), plantsSource: "default", activeId: "c1", inputs: {}, saved: [], manualPrices: {}, priceCache: {}, theme: "auto" });
+const today = () => new Date().toISOString().slice(0, 10);
+const defaults = () => ({
+  plants: DEFAULT_PLANTS.map((p) => structuredClone(p)),
+  plantsSource: "default",
+  activeId: "chorro",
+  prices: {}, // { fecha: { es:[...], source:'excel'|'manual'|'auto', file } }
+  log: {}, // { plantId: { fecha: { cota, hours:{G1:h}, nota } } }
+  inputs: {}, // { 'plantId|fecha': {...} }
+  sent: {}, // programas marcados como enviados { 'plantId|fecha': {...} }
+  theme: "auto",
+  created: today(),
+});
 
 let state;
 try {
@@ -57,7 +62,7 @@ function save() {
 }
 export const db = {
   get: () => state,
-  plant: () => state.plants.find((p) => p.id === state.activeId) || state.plants[0],
+  plant: (id) => state.plants.find((p) => p.id === (id || state.activeId)) || state.plants[0],
   set(patch) {
     state = { ...state, ...patch };
     save();
@@ -65,6 +70,11 @@ export const db = {
   },
   updatePlant(id, patch) {
     db.set({ plants: state.plants.map((p) => (p.id === id ? { ...p, ...patch } : p)), plantsSource: "local" });
+  },
+  setLog(plantId, date, patch) {
+    const log = { ...state.log, [plantId]: { ...(state.log[plantId] || {}) } };
+    log[plantId][date] = { ...(log[plantId][date] || {}), ...patch };
+    db.set({ log });
   },
   on(f) {
     subs.add(f);
@@ -75,33 +85,19 @@ export const db = {
     save();
     subs.forEach((f) => f(state));
   },
+  replace(s) {
+    state = { ...defaults(), ...s };
+    save();
+    subs.forEach((f) => f(state));
+  },
 };
-
-// ---- Configuración común del equipo (centrales.json junto a la web) ----
-// Si existe, todos los compañeros ven las mismas centrales sin configurar nada.
-export async function loadTeamPlants(force = false) {
-  if (!force && state.plantsSource === "local") return false;
-  const j = await tryJson(new URL("./centrales.json", location.href).href);
-  if (!Array.isArray(j?.centrales) || !j.centrales.length) return false;
-  const activeId = j.centrales.some((p) => p.id === state.activeId) ? state.activeId : j.centrales[0].id;
-  db.set({ plants: j.centrales, plantsSource: "team", activeId });
-  return true;
-}
-
-// ---- Precios OMIE ----
-// La web publica /omie/index.json y /omie/days/AAAA-MM-DD.json (GitHub Actions).
-// Ruta relativa: funciona en cualquier servidor donde se publique la carpeta.
-const BASES = [new URL("../omie/", location.href).href, new URL("./omie/", location.href).href];
-let indexCache = null;
-let workingBase = null;
 
 async function tryJson(url) {
   const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), 6000);
+  const t = setTimeout(() => ctl.abort(), 5000);
   try {
     const r = await fetch(url, { cache: "no-cache", signal: ctl.signal });
-    if (!r.ok) return null;
-    return await r.json();
+    return r.ok ? await r.json() : null;
   } catch {
     return null;
   } finally {
@@ -109,52 +105,84 @@ async function tryJson(url) {
   }
 }
 
-export async function omieIndex(force = false) {
-  if (indexCache && !force) return indexCache;
-  for (const b of workingBase ? [workingBase, ...BASES] : BASES) {
-    const j = await tryJson(b + "index.json");
-    if (j?.days) {
-      workingBase = b;
-      indexCache = j;
-      return j;
-    }
-  }
-  indexCache = { days: [], latest: null, updated: null, offline: true };
-  return indexCache;
+// Configuración común: centrales.json junto a la web (opcional)
+export async function loadTeamPlants(force = false) {
+  if (!force && state.plantsSource === "local") return false;
+  const j = await tryJson(new URL("./centrales.json", location.href).href);
+  if (!Array.isArray(j?.centrales) || !j.centrales.length || !j.centrales.every((c) => Array.isArray(c.groups))) return false;
+  const activeId = j.centrales.some((p) => p.id === state.activeId) ? state.activeId : j.centrales[0].id;
+  db.set({ plants: j.centrales, plantsSource: "team", activeId });
+  return true;
 }
 
-// Devuelve { prices, source: 'omie'|'manual'|'ejemplo', note }
-export async function pricesFor(dateKey) {
-  const cached = state.priceCache[dateKey];
-  if (cached) return { prices: cached, source: "omie" };
-  const idx = await omieIndex();
-  if (idx.days?.includes(dateKey) && workingBase) {
-    const j = await tryJson(`${workingBase}days/${dateKey}.json`);
-    if (j?.es?.length) {
-      const prices = j.es.map((v) => +v);
-      // guarda en local (máx. 120 días) para poder trabajar sin conexión
-      const pc = { ...state.priceCache, [dateKey]: prices };
-      const keys = Object.keys(pc).sort();
-      while (keys.length > 120) delete pc[keys.shift()];
-      db.set({ priceCache: pc });
-      return { prices, source: "omie" };
-    }
-  }
-  if (state.manualPrices[dateKey]) return { prices: state.manualPrices[dateKey], source: "manual" };
-  return { prices: samplePrices(dateKey), source: "ejemplo" };
+// ---------- Excel de OMIE ----------
+let xlsxLoading = null;
+function loadXlsx() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (!xlsxLoading)
+    xlsxLoading = new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = new URL("./js/vendor/xlsx.full.min.js", location.href).href;
+      s.onload = () => res(window.XLSX);
+      s.onerror = () => rej(new Error("No se pudo cargar el lector de Excel"));
+      document.head.append(s);
+    });
+  return xlsxLoading;
 }
 
-// Pegado manual: "hora;precio" (24 líneas), "periodo;precio" (96) o una columna de precios
+// Fecha a partir del nombre: INT_PBC_EV_H_1_30_10_2026_30_10_2026.XLS
+export function dateFromName(name) {
+  const m = name.match(/(\d{2})_(\d{2})_(\d{4})/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  const m2 = name.match(/(\d{4})(\d{2})(\d{2})/);
+  if (m2) return `${m2[1]}-${m2[2]}-${m2[3]}`;
+  return null;
+}
+
+// Devuelve { es:[...], pt:[...] } con 96 (o 92/100, o 24) precios
+export async function parseOmieExcel(file) {
+  const XLSX = await loadXlsx();
+  const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+  for (const name of wb.SheetNames) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true });
+    const hi = rows.findIndex((r) => r.some((c) => /^H\d+(Q\d)?$/i.test(String(c).trim())));
+    const esRow = rows.find((r) => /precio/i.test(String(r[0])) && /espa/i.test(String(r[0])));
+    if (hi < 0 || !esRow) continue;
+    const hdr = rows[hi];
+    const cols = hdr.map((c, i) => (/^H\d+(Q\d)?$/i.test(String(c).trim()) ? i : -1)).filter((i) => i >= 0);
+    const num = (v) => {
+      if (typeof v === "number") return v;
+      const t = String(v).trim();
+      return t.includes(",") ? parseFloat(t.replace(/\./g, "").replace(",", ".")) : parseFloat(t);
+    };
+    const es = cols.map((i) => num(esRow[i])).filter((v) => !Number.isNaN(v));
+    const ptRow = rows.find((r) => /precio/i.test(String(r[0])) && /portug/i.test(String(r[0])));
+    const pt = ptRow ? cols.map((i) => num(ptRow[i])) : null;
+    if (es.length >= 23) return { es: es.length <= 25 ? es.flatMap((v) => [v, v, v, v]) : es, pt };
+  }
+  throw new Error("No encuentro la fila de precios de España en el archivo");
+}
+
+export function storePrices(date, es, source, file) {
+  db.set({ prices: { ...state.prices, [date]: { es, source, file: file || null, loaded: new Date().toISOString() } } });
+}
+
+// Pegado manual: 24 o 96 valores (uno por línea; vale "hora;precio")
 export function parseManual(text) {
   const vals = [];
   for (const line of text.split(/\r?\n/)) {
-    const parts = line.trim().split(/[;\t]|,(?=\s*-?\d+[.,]?\d*\s*$)/).map((s) => s.trim()).filter(Boolean);
+    const parts = line.trim().split(/[;\t]/).map((s) => s.trim()).filter(Boolean);
     if (!parts.length) continue;
     const v = parseFloat(parts[parts.length - 1].replace(",", "."));
     if (!Number.isNaN(v)) vals.push(v);
   }
-  if (vals.length === 24) return vals.flatMap((v) => [v, v, v, v]);
-  if (vals.length >= 92 && vals.length <= 100) return vals;
   if (vals.length >= 23 && vals.length <= 25) return vals.flatMap((v) => [v, v, v, v]);
+  if (vals.length >= 92 && vals.length <= 100) return vals;
   return null;
+}
+
+// Precios publicados automáticamente junto a la web (si existen); opcional
+export async function autoPrices(date) {
+  const j = await tryJson(new URL(`../omie/days/${date}.json`, location.href).href);
+  return j?.es?.length ? j.es : null;
 }

@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    # Precios OMIE del día siguiente: se publican hacia las 13:00 (hora España)
+    - cron: "20 12 * * *"
+    - cron: "50 13 * * *"
+    - cron: "30 5 * * *"
 
 permissions:
   contents: read
@@ -29,6 +34,17 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Restore OMIE price cache
+        uses: actions/cache@v4
+        with:
+          path: public/omie
+          key: omie-${{ github.run_id }}
+          restore-keys: omie-
+
+      - name: Download OMIE prices
+        run: node scripts/fetch-omie.mjs 60
+        continue-on-error: true
 
       - name: Build
         run: npm run build

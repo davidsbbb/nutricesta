@@ -54,3 +54,13 @@ Pasos para activarlo (solo hace falta hacerlo una vez):
 
 Abre esa URL desde el navegador del móvil — no hace falta ningún ajuste
 adicional.
+
+## Otras herramientas publicadas en este sitio
+- `/bess/` — Panel BESS (Acumula): ingresos, mercado, tiempo real y control simulado.
+- `/hidro/` — Plan Hidráulico: plan óptimo de turbinado del día siguiente a partir
+  de los precios OMIE, el volumen del embalse y la aportación prevista. Exporta
+  el programa cuarto‑horario en CSV para el representante de mercado.
+
+Los precios de OMIE se descargan solos: el workflow de publicación se ejecuta
+también cada día (≈12:20, 13:50 y 05:30 UTC), ejecuta `scripts/fetch-omie.mjs`
+y publica `/omie/index.json` y `/omie/days/AAAA-MM-DD.json`.

@@ -1,4 +1,4 @@
-import { db, omieIndex, pricesFor, parseManual } from "./data.js";
+import { db, omieIndex, pricesFor, parseManual, loadTeamPlants } from "./data.js";
 import { optimizeDay, flatPlan, plantDerived, powerOf } from "./hydro.js";
 import { xyChart, legend, tipRow, hideTip } from "./charts.js";
 import { num, eur, pct, esc, addDays, todayKey, fmtDayLong, fmtDayShort, fmtHM, downloadFile, mean, clamp } from "./util.js";
@@ -62,13 +62,6 @@ function render() {
   document.getElementById("app").classList.remove("nav-open");
   (routes[r] || renderPlan)(view);
 }
-window.addEventListener("hashchange", render);
-db.on(fillPlants);
-applyTheme();
-fillPlants();
-render();
-headerPills();
-setInterval(() => omieIndex(true).then(headerPills), 15 * 60 * 1000);
 
 // ---------- entradas del plan ----------
 function inputKey(p, date) {
@@ -482,6 +475,9 @@ function renderPlants(root) {
         <p class="note" style="margin-top:12px">Con estos datos: <b>${num(d.kwhm3, 3)} kWh por m³</b> (${num(d.mwhHm3, 0)} MWh por hm³) · a plena carga turbina <b>${num(d.qmax, 2)} m³/s</b> y da <b>${num(d.pmax, 2)} MW</b>${d.pmax < p.pmax - 0.01 ? " (limitado por el caudal máximo)" : ""} · a potencia mínima, ${num(d.qmin, 2)} m³/s · comprobación: ${num(powerOf(d.qmax, p.head, d.eta), 2)} MW.</p>
         <div class="btn-row" style="margin-top:12px"><button class="btn primary" id="save">Guardar</button><button class="btn" id="add">Nueva central</button><button class="btn danger" id="del" ${db.get().plants.length <= 1 ? "disabled" : ""}>Eliminar</button></div>
       </div>
+      <div class="card mb"><div class="card-head"><h2>Configuración del equipo</h2><span class="meta">${{ team: "Usando la configuración común", local: "Usando cambios hechos en este navegador", default: "Usando centrales de ejemplo" }[db.get().plantsSource] || ""}</span></div>
+        <p class="note">Para que todos los compañeros vean las mismas centrales, descarga este archivo y súbelo como <code>centrales.json</code> junto a la web (ver LEEME). Cada vez que alguien abra la herramienta lo cargará solo.</p>
+        <div class="btn-row"><button class="btn primary" id="team">Descargar centrales.json</button><button class="btn" id="useTeam">Volver a la configuración común</button></div></div>
       <div class="card"><div class="card-head"><h2>Copia de seguridad</h2></div><div class="btn-row">
         <button class="btn" id="exp">Exportar configuración</button>
         <label class="btn">Importar configuración<input type="file" id="imp" accept=".json" hidden /></label>
@@ -499,14 +495,21 @@ function renderPlants(root) {
     };
     $("#add").onclick = () => {
       const np = { ...p, id: "c" + Date.now().toString(36), name: "Nueva central" };
-      db.set({ plants: [...db.get().plants, np], activeId: np.id });
+      db.set({ plants: [...db.get().plants, np], activeId: np.id, plantsSource: "local" });
       draw();
     };
     $("#del").onclick = () => {
       if (!confirm(`¿Eliminar ${p.name}?`)) return;
       const rest = db.get().plants.filter((x) => x.id !== p.id);
-      db.set({ plants: rest, activeId: rest[0].id });
+      db.set({ plants: rest, activeId: rest[0].id, plantsSource: "local" });
       draw();
+    };
+    $("#team").onclick = () => downloadFile("centrales.json", JSON.stringify({ actualizado: new Date().toISOString().slice(0, 10), centrales: db.get().plants }, null, 2), "application/json");
+    $("#useTeam").onclick = async () => {
+      if ((await loadTeamPlants(true))) {
+        toast("Configuración común cargada.");
+        draw();
+      } else toast("No hay archivo centrales.json publicado junto a la web.");
     };
     $("#exp").onclick = () => downloadFile("plan-hidraulico-config.json", JSON.stringify({ plants: db.get().plants, saved: db.get().saved, manualPrices: db.get().manualPrices }, null, 2), "application/json");
     $("#imp").onchange = async (e) => {
@@ -528,3 +531,13 @@ function renderPlants(root) {
   };
   draw();
 }
+
+// ---------- arranque (al final, cuando todo está definido) ----------
+window.addEventListener("hashchange", render);
+db.on(fillPlants);
+applyTheme();
+fillPlants();
+render();
+headerPills();
+loadTeamPlants().then((ok) => ok && render());
+setInterval(() => omieIndex(true).then(headerPills), 15 * 60 * 1000);

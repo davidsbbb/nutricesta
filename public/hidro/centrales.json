@@ -1,0 +1,36 @@
+{
+  "actualizado": "2026-10-29",
+  "nota": "Sustituir por los datos reales de las centrales",
+  "centrales": [
+    {
+      "id": "c1",
+      "name": "Central de embalse",
+      "type": "embalse",
+      "pmax": 20,
+      "pmin": 4,
+      "head": 80,
+      "eta": 88,
+      "qmax": 30,
+      "qeco": 0.5,
+      "vmin": 2,
+      "vmax": 12,
+      "maxStarts": 3,
+      "startCost": 150
+    },
+    {
+      "id": "c2",
+      "name": "Minicentral fluyente",
+      "type": "fluyente",
+      "pmax": 3,
+      "pmin": 0.6,
+      "head": 25,
+      "eta": 85,
+      "qmax": 15,
+      "qeco": 1,
+      "vmin": 0,
+      "vmax": 0.03,
+      "maxStarts": 2,
+      "startCost": 30
+    }
+  ]
+}

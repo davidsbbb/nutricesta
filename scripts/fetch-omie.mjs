@@ -36,7 +36,7 @@ async function fetchDay(d) {
   for (const v of [1, 2]) {
     const url = `https://www.omie.es/es/file-download?parents%5B0%5D=marginalpdbc&filename=marginalpdbc_${ymd}.${v}`;
     try {
-      const res = await fetch(url, { headers: { "User-Agent": "nutricesta-hidro/1.0" } });
+      const res = await fetch(url, { headers: { "User-Agent": "plan-hidraulico/1.0" } });
       if (!res.ok) continue;
       const txt = await res.text();
       const { es, pt } = parseMarginal(txt);

@@ -38,7 +38,7 @@ export const DEFAULT_PLANTS = [
   },
 ];
 
-const defaults = () => ({ plants: DEFAULT_PLANTS.map((p) => ({ ...p })), activeId: "c1", inputs: {}, saved: [], manualPrices: {}, priceCache: {}, theme: "auto" });
+const defaults = () => ({ plants: DEFAULT_PLANTS.map((p) => ({ ...p })), plantsSource: "default", activeId: "c1", inputs: {}, saved: [], manualPrices: {}, priceCache: {}, theme: "auto" });
 
 let state;
 try {
@@ -64,7 +64,7 @@ export const db = {
     subs.forEach((f) => f(state));
   },
   updatePlant(id, patch) {
-    db.set({ plants: state.plants.map((p) => (p.id === id ? { ...p, ...patch } : p)) });
+    db.set({ plants: state.plants.map((p) => (p.id === id ? { ...p, ...patch } : p)), plantsSource: "local" });
   },
   on(f) {
     subs.add(f);
@@ -77,9 +77,21 @@ export const db = {
   },
 };
 
+// ---- Configuración común del equipo (centrales.json junto a la web) ----
+// Si existe, todos los compañeros ven las mismas centrales sin configurar nada.
+export async function loadTeamPlants(force = false) {
+  if (!force && state.plantsSource === "local") return false;
+  const j = await tryJson(new URL("./centrales.json", location.href).href);
+  if (!Array.isArray(j?.centrales) || !j.centrales.length) return false;
+  const activeId = j.centrales.some((p) => p.id === state.activeId) ? state.activeId : j.centrales[0].id;
+  db.set({ plants: j.centrales, plantsSource: "team", activeId });
+  return true;
+}
+
 // ---- Precios OMIE ----
 // La web publica /omie/index.json y /omie/days/AAAA-MM-DD.json (GitHub Actions).
-const BASES = [new URL("../omie/", location.href).href, "https://davidsbbb.github.io/nutricesta/omie/"];
+// Ruta relativa: funciona en cualquier servidor donde se publique la carpeta.
+const BASES = [new URL("../omie/", location.href).href, new URL("./omie/", location.href).href];
 let indexCache = null;
 let workingBase = null;
 

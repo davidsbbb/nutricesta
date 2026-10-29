@@ -41,7 +41,7 @@ lee los precios públicos de OMIE.
 | `index.html`, `css/`, `js/` | La aplicación |
 | `js/hydro.js` | Cálculo: plan óptimo por programación dinámica sobre la cota del embalse, con grupos, dependencias, arranques, cascada y riego |
 | `js/data.js` | Lectura del Excel de OMIE, diario y configuración común |
-| `js/vendor/xlsx.full.min.js` | Lector de Excel (SheetJS, licencia Apache 2.0) incluido para no depender de internet |
+| `js/vendor/xlsx.core.min.js` | Lector de Excel (SheetJS, licencia Apache 2.0) incluido para no depender de internet |
 | `centrales.json` | **Datos de las centrales comunes a todo el equipo** |
 | `../omie/` | Precios OMIE descargados (los genera el script, no se editan a mano) |
 | `../../scripts/fetch-omie.mjs` | Script que descarga los precios de OMIE |

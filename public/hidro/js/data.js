@@ -122,7 +122,7 @@ function loadXlsx() {
   if (!xlsxLoading)
     xlsxLoading = new Promise((res, rej) => {
       const s = document.createElement("script");
-      s.src = new URL("./js/vendor/xlsx.full.min.js", location.href).href;
+      s.src = new URL("./js/vendor/xlsx.core.min.js", location.href).href;
       s.onload = () => res(window.XLSX);
       s.onerror = () => rej(new Error("No se pudo cargar el lector de Excel"));
       document.head.append(s);
